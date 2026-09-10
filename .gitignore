@@ -1,0 +1,37 @@
+# GrapheneOS source checkout
+/grapheneos/
+
+# Build outputs / caches
+/build/out/
+/build/tmp/
+/build/cache/
+/out/
+/logs/
+/releases/
+/cache/
+
+# Backups / generated artifacts
+/backups/
+/artifacts/
+/reports/
+
+# Private signing material
+*.pk8
+*.key
+*.p12
+*.pfx
+**/security/signing/*.pem
+**/security/android-signing/
+
+# Android repo metadata
+.repo/
+
+# Nested/mirror repositories
+/wormos/repo/
+
+# Entire local build workspace
+/build/
+
+# Local infrastructure configuration
+/config/network/*.env
+/wormos/repo/
