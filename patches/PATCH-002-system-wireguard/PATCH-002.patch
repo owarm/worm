@@ -1,0 +1,140 @@
+From 8831b6c658e68c3eb6000f7f733443190697a01c Mon Sep 17 00:00:00 2001
+From: detter <git@unit.estixari.com>
+Date: Fri, 11 Sep 2026 10:38:19 +0200
+Subject: [PATCH] PATCH-002: add system WireGuard integration
+
+---
+ .../PATCH-002-system-wireguard/README.md      | 22 +++++++++++
+ .../PATCH-002-system-wireguard/apply.sh       | 19 ++++++++++
+ .../files/worm_wg/Android.bp                  | 19 ++++++++++
+ .../files/worm_wg/main.cpp                    | 37 +++++++++++++++++++
+ 4 files changed, 97 insertions(+)
+ create mode 100644 wormos/patches/PATCH-002-system-wireguard/README.md
+ create mode 100755 wormos/patches/PATCH-002-system-wireguard/apply.sh
+ create mode 100644 wormos/patches/PATCH-002-system-wireguard/files/worm_wg/Android.bp
+ create mode 100644 wormos/patches/PATCH-002-system-wireguard/files/worm_wg/main.cpp
+
+diff --git a/wormos/patches/PATCH-002-system-wireguard/README.md b/wormos/patches/PATCH-002-system-wireguard/README.md
+new file mode 100644
+index 0000000..90ce474
+--- /dev/null
++++ b/wormos/patches/PATCH-002-system-wireguard/README.md
+@@ -0,0 +1,22 @@
++# PATCH-002 - System WireGuard
++
++Target: Pixel 10 / frankel / Android 17
++
++KEEP:
++- Pixel kernel WireGuard built-in
++- linux/wireguard.h UAPI
++- Generic Netlink
++
++REMOVE:
++- wireguard-tools
++- wg / wg-quick
++- libmnl modifications
++
++ADD:
++- Android-native privileged WireGuard controller
++- init integration
++- dedicated SELinux policy
++- wg0 lifecycle
++- WORM-supplied runtime configuration
++
++No private keys, peer secrets or production endpoints are stored in Git.
+diff --git a/wormos/patches/PATCH-002-system-wireguard/apply.sh b/wormos/patches/PATCH-002-system-wireguard/apply.sh
+new file mode 100755
+index 0000000..2043ba6
+--- /dev/null
++++ b/wormos/patches/PATCH-002-system-wireguard/apply.sh
+@@ -0,0 +1,19 @@
++#!/usr/bin/env bash
++set -euo pipefail
++
++TREE="${1:-/opt/worm/grapheneos}"
++SRC="$(cd "$(dirname "$0")" && pwd)/files/worm_wg"
++DST="$TREE/system/worm/worm_wg"
++
++test -f "$TREE/build/envsetup.sh" || {
++    echo "STOP: GrapheneOS tree not found: $TREE"
++    exit 1
++}
++
++mkdir -p "$DST"
++
++install -m 0644 "$SRC/Android.bp" "$DST/Android.bp"
++install -m 0644 "$SRC/main.cpp" "$DST/main.cpp"
++
++echo "PATCH-002 applied"
++echo "TARGET=$DST"
+diff --git a/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/Android.bp b/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/Android.bp
+new file mode 100644
+index 0000000..a64a196
+--- /dev/null
++++ b/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/Android.bp
+@@ -0,0 +1,19 @@
++cc_binary {
++    name: "worm_wg",
++
++    srcs: [
++        "main.cpp",
++    ],
++
++    cflags: [
++        "-Wall",
++        "-Wextra",
++        "-Werror",
++    ],
++
++    shared_libs: [
++        "liblog",
++    ],
++
++    system_ext_specific: true,
++}
+diff --git a/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/main.cpp b/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/main.cpp
+new file mode 100644
+index 0000000..a3ae73f
+--- /dev/null
++++ b/wormos/patches/PATCH-002-system-wireguard/files/worm_wg/main.cpp
+@@ -0,0 +1,37 @@
++#include <errno.h>
++#include <linux/genetlink.h>
++#include <linux/netlink.h>
++#include <linux/wireguard.h>
++#include <sys/socket.h>
++#include <unistd.h>
++
++#include <cstdio>
++#include <cstring>
++
++int main() {
++    int fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_GENERIC);
++    if (fd < 0) {
++        std::fprintf(stderr,
++                     "worm_wg: NETLINK_GENERIC socket failed: %s\n",
++                     std::strerror(errno));
++        return 1;
++    }
++
++    sockaddr_nl addr{};
++    addr.nl_family = AF_NETLINK;
++
++    if (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
++        std::fprintf(stderr,
++                     "worm_wg: netlink bind failed: %s\n",
++                     std::strerror(errno));
++        close(fd);
++        return 2;
++    }
++
++    std::printf("worm_wg: Generic Netlink available\n");
++    std::printf("worm_wg: WireGuard UAPI version=%u\n",
++                WIREGUARD_GENL_VERSION);
++
++    close(fd);
++    return 0;
++}
+-- 
+2.47.3
+
