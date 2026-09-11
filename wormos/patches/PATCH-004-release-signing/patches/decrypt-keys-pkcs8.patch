@@ -1,0 +1,30 @@
+--- a/script/decrypt-keys
++++ b/script/decrypt-keys
+@@ -23,11 +23,22 @@
+     if openssl pkey -inform DER -in "$key.pk8" \
+         -noout -check >/dev/null 2>&1; then
+ 
+-        openssl pkey \
+-            -inform DER \
+-            -in "$key.pk8" \
+-            -outform DER \
+-            -out "$tmp/$key.pk8"
++            # WORM: canonical Java-compatible PKCS#8 DER
++            openssl pkey \
++                -inform DER \
++                -in "$key.pk8" \
++                -outform PEM \
++                -out "$tmp/$key.pem"
++
++            openssl pkcs8 \
++                -topk8 \
++                -inform PEM \
++                -in "$tmp/$key.pem" \
++                -outform DER \
++                -nocrypt \
++                -out "$tmp/$key.pk8"
++
++            rm -f "$tmp/$key.pem"
+     else
+         if [[ -z $password ]]; then
+             echo "Unable to read $key.pk8 as unencrypted DER and no password supplied" >&2
