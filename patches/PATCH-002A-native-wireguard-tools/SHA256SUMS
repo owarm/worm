@@ -1,0 +1,8 @@
+a9faf4b20db96bba11f1782542c17979468a05499daa29c6384317b2af43aa41  patches/PATCH-002A-native-wireguard-tools/apply.sh
+cdb30c32be54d307adc3a110c30b6845b1cbbe31d328b375cdd9f60c1d41f9c8  patches/PATCH-002A-native-wireguard-tools/files/wireguard-tools/Android.bp
+8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643  patches/PATCH-002A-native-wireguard-tools/files/wireguard-tools/src/COPYING
+8a9a57ecddc597744174327ebf652f026f64e93d02f2701f126a51fe56dfbc6f  patches/PATCH-002A-native-wireguard-tools/files/wireguard-tools/src/.gitattributes
+2e8c340800c61bef9d4274c49fd6ded9c8d92106794bdf84db0e63d0a0c03946  patches/PATCH-002A-native-wireguard-tools/files/wireguard-tools/src/.gitignore
+73ad6c2eb8fae4980650dfdd97ebfd3af146a3894f7948fa3d8859ec77d65c9c  patches/PATCH-002A-native-wireguard-tools/files/wireguard-tools/src/README.md
+5360239bc6d68f75c9dea9dfd57251f04638bdbc88df9fbca03c710b855305d5  patches/PATCH-002A-native-wireguard-tools/README.md
+2e925feead26fac813571e4516a27ad88e4e445b9bb2d583b2c5cbdad8317a12  patches/PATCH-002A-native-wireguard-tools/verify.sh

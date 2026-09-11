@@ -1,0 +1,7 @@
+cc_binary {
+    name: "wg",
+    srcs: ["src/src/*.c"],
+    local_include_dirs: ["src/src"],
+    cflags: ["-std=gnu99", "-D_GNU_SOURCE", "-Wall", "-Wextra", "-DRUNSTATEDIR=\"/dev/worm/wireguard\""],
+    vendor: true,
+}
