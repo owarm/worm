@@ -35,3 +35,4 @@
 # Local infrastructure configuration
 /config/network/*.env
 /wormos/repo/
+/local-assets/
