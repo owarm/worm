@@ -58,27 +58,6 @@ echo
 echo "Android global font families untouched."
 
 
-cat > "$DEST/Android.bp" <<'BP'
-prebuilt_font {
-    name: "PragmataProWormMono.ttf",
-    src: "PragmataProWormMono.ttf",
-    product_specific: true,
-}
-
-prebuilt_font {
-    name: "PragmataProWormRegular.ttf",
-    src: "PragmataProWormRegular.ttf",
-    product_specific: true,
-}
-
-prebuilt_etc {
-    name: "worm_fonts_customization.xml",
-    src: "fonts_customization.xml",
-    filename: "fonts_customization.xml",
-    product_specific: true,
-}
-BP
-
 FRANKEL="$TREE/vendor/google_devices/frankel/frankel.mk"
 
 if ! grep -q 'WORM PATCH-003' "$FRANKEL"; then
