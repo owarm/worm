@@ -36,3 +36,7 @@
 /config/network/*.env
 /wormos/repo/
 /local-assets/
+*.pem
+*.jks
+*.keystore
+**/.git/
