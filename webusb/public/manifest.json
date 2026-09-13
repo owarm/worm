@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "channel": "stable",
+  "device": "frankel",
+  "release": {
+    "id": "2026091100",
+    "file": "/releases/frankel-install-2026091100.zip",
+    "sha256": "eda7af95eaf56cd9e9697970a56b6c08a90c75f2308f90a5d5019137ad0b2832",
+    "size": 2093880852
+  }
+}
