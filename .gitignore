@@ -1,61 +1,56 @@
-# ==================================================
-# Worm local/private/generated data
-# ==================================================
 
+# ==================================================
 # Android / GrapheneOS build outputs
-/build/
-/out/
-/worm-out/
-/worm-out-v2/
-**/build/
-**/out/
-
-# Gradle / Kotlin
-**/.gradle/
-**/.gradle-user-home/
-**/.kotlin/
-**/local.properties
-
-# Caches
-**/cache/
-**/ccache/
-**/__pycache__/
-**/node_modules/
-
-# Logs / generated artifacts
-/logs/
 /artifacts/
-/backups/
-/releases/
-
-# Signing keys / secrets
-/keys/
-/keys-release-v2/
-/keys-build-v2/
-**/*.pk8
-**/*.pem
-**/*.x509.pem
 **/*.avbpubkey
-**/*.jks
-**/*.keystore
-**/release.env
-**/keystore.properties
-
+/backups/
+**/build/
+/build/
+**/cache/
+# Caches
+**/ccache/
+.DS_Store
+# Editors / IDE
+# Generated Android release tooling
 # Generated signed files
+**/.gradle/
+# Gradle / Kotlin
+**/.gradle-user-home/
+**/.idea/
 **/*.idsig
-
+**/*.jks
+/keys/
+/keys-build-v2/
+/keys-release-v2/
+**/*.keystore
+**/keystore.properties
+**/.kotlin/
 # Large archives
-**/*.tgz
+**/local.properties
+/logs/
+# Logs / generated artifacts
+**/node_modules/
+# OS
+**/out/
+/out/
+**/*.pem
+**/*.pk8
+**/__pycache__/
+**/release.env
+/releases/
+# Signing keys / secrets
+*.swo
+*.swp
 **/*.tar
 **/*.tar.gz
-**/*.zip
-
-# Editors / IDE
-**/.idea/
-**/.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
+**/*.tgz
 Thumbs.db
+/tools/otatools-*/
+/tools/otatools-current/
+/tools/*.zip
+**/.vscode/
+# Worm local/private/generated data
+/worm-out/
+/worm-out-v2/
+**/*.x509.pem
+**/*.zip
