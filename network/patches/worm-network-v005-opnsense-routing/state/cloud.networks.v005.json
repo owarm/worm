@@ -1,0 +1,49 @@
+{
+    "meta": {
+        "pagination": {
+            "last_page": 1,
+            "next_page": null,
+            "page": 1,
+            "per_page": 50,
+            "previous_page": null,
+            "total_entries": 1
+        }
+    },
+    "networks": [
+        {
+            "name": "worm-private",
+            "created": "2026-09-05T07:33:44Z",
+            "id": 12619353,
+            "ip_range": "10.90.0.0/16",
+            "labels": {},
+            "load_balancers": [],
+            "servers": [],
+            "protection": {
+                "delete": false
+            },
+            "routes": [
+                {
+                    "destination": "10.60.0.0/24",
+                    "gateway": "10.90.10.1"
+                }
+            ],
+            "subnets": [
+                {
+                    "gateway": "10.90.0.1",
+                    "ip_range": "10.90.20.0/24",
+                    "network_zone": "eu-central",
+                    "type": "vswitch",
+                    "vswitch_id": 85469
+                },
+                {
+                    "gateway": "10.90.0.1",
+                    "ip_range": "10.90.10.0/24",
+                    "network_zone": "eu-central",
+                    "type": "cloud",
+                    "vswitch_id": null
+                }
+            ],
+            "expose_routes_to_vswitch": true
+        }
+    ]
+}

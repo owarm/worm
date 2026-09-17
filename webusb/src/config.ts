@@ -12,4 +12,4 @@ export const RELEASE = {
   checksumSha256: ''
 } as const;
 
-export const FASTBOOT_PACKAGE_NAME = 'android-fastboot';
+export const FASTBOOT_PACKAGE_NAME = 'grapheneos-fastboot';

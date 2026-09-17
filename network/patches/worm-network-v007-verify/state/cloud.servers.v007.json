@@ -1,0 +1,203 @@
+{
+ "servers": [
+  {
+   "id": 164649753,
+   "name": "worm-opnsense",
+   "status": "off",
+   "server_type": {
+    "id": 109,
+    "name": "cpx22",
+    "architecture": "x86",
+    "cores": 2,
+    "cpu_type": "shared",
+    "category": "regular_purpose",
+    "deprecated": false,
+    "deprecation": null,
+    "description": "CPX 22",
+    "disk": 80,
+    "memory": 4,
+    "prices": [
+     {
+      "location": "fsn1",
+      "price_hourly": {
+       "gross": "0.0380640000000000",
+       "net": "0.0312000000"
+      },
+      "price_monthly": {
+       "gross": "23.7778000000000000",
+       "net": "19.4900000000"
+      },
+      "included_traffic": 21990232555520,
+      "price_per_tb_traffic": {
+       "gross": "1.2200000000000000",
+       "net": "1.0000000000"
+      }
+     },
+     {
+      "location": "hel1",
+      "price_hourly": {
+       "gross": "0.0380640000000000",
+       "net": "0.0312000000"
+      },
+      "price_monthly": {
+       "gross": "23.7778000000000000",
+       "net": "19.4900000000"
+      },
+      "included_traffic": 21990232555520,
+      "price_per_tb_traffic": {
+       "gross": "1.2200000000000000",
+       "net": "1.0000000000"
+      }
+     },
+     {
+      "location": "nbg1",
+      "price_hourly": {
+       "gross": "0.0380640000000000",
+       "net": "0.0312000000"
+      },
+      "price_monthly": {
+       "gross": "23.7778000000000000",
+       "net": "19.4900000000"
+      },
+      "included_traffic": 21990232555520,
+      "price_per_tb_traffic": {
+       "gross": "1.2200000000000000",
+       "net": "1.0000000000"
+      }
+     },
+     {
+      "location": "sin",
+      "price_hourly": {
+       "gross": "0.0518500000000000",
+       "net": "0.0425000000"
+      },
+      "price_monthly": {
+       "gross": "32.3178000000000000",
+       "net": "26.4900000000"
+      },
+      "included_traffic": 1099511627776,
+      "price_per_tb_traffic": {
+       "gross": "9.0280000000000000",
+       "net": "7.4000000000"
+      }
+     }
+    ],
+    "storage_type": "local",
+    "locations": [
+     {
+      "id": 1,
+      "name": "fsn1",
+      "available": true,
+      "recommended": false,
+      "deprecation": null
+     },
+     {
+      "id": 2,
+      "name": "nbg1",
+      "available": true,
+      "recommended": false,
+      "deprecation": null
+     },
+     {
+      "id": 3,
+      "name": "hel1",
+      "available": true,
+      "recommended": true,
+      "deprecation": null
+     },
+     {
+      "id": 6,
+      "name": "sin",
+      "available": true,
+      "recommended": false,
+      "deprecation": null
+     }
+    ]
+   },
+   "location": {
+    "id": 1,
+    "name": "fsn1",
+    "description": "Falkenstein DC Park 1",
+    "city": "Falkenstein",
+    "country": "DE",
+    "latitude": 50.47612,
+    "longitude": 12.370071,
+    "network_zone": "eu-central"
+   },
+   "image": {
+    "id": 310554929,
+    "type": "system",
+    "name": "debian-13",
+    "architecture": "x86",
+    "bound_to": null,
+    "created_from": null,
+    "deprecated": null,
+    "deprecation": null,
+    "description": "Debian 13",
+    "disk_size": 5,
+    "image_size": null,
+    "labels": {},
+    "os_flavor": "debian",
+    "os_version": "13",
+    "protection": {
+     "delete": false
+    },
+    "rapid_deploy": true,
+    "status": "available",
+    "created": "2025-08-18T06:15:25Z",
+    "deleted": null
+   },
+   "iso": {
+    "id": 121234,
+    "name": "OPNsense-25.7-dvd-amd64.iso",
+    "description": "OPNsense 25.7 (amd64)",
+    "type": "public",
+    "architecture": "x86",
+    "deprecation": null
+   },
+   "primary_disk_size": 80,
+   "labels": {},
+   "protection": {
+    "delete": false,
+    "rebuild": false
+   },
+   "backup_window": null,
+   "rescue_enabled": false,
+   "locked": false,
+   "placement_group": null,
+   "public_net": {
+    "firewalls": [],
+    "floating_ips": [],
+    "ipv4": {
+     "id": 148148066,
+     "ip": "2.28.34.27",
+     "blocked": false,
+     "dns_ptr": "static.27.34.28.2.clients.your-server.de"
+    },
+    "ipv6": {
+     "id": 148148067,
+     "ip": "2a01:4f8:c015:ff4::/64",
+     "blocked": false,
+     "dns_ptr": []
+    }
+   },
+   "private_net": [],
+   "load_balancers": [],
+   "volumes": [],
+   "included_traffic": 21990232555520,
+   "ingoing_traffic": 2507475000,
+   "outgoing_traffic": 1577915000,
+   "created": "2026-09-05T07:47:36Z"
+  }
+ ],
+ "meta": {
+  "pagination": {
+   "last_page": 1,
+   "next_page": null,
+   "page": 1,
+   "per_page": 50,
+   "previous_page": null,
+   "total_entries": 1
+  }
+ }
+}

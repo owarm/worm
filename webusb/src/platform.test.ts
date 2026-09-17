@@ -124,7 +124,7 @@ describe('renderUnsupportedHost', () => {
 
     renderUnsupportedHost(root, { supported: false, platform: 'Windows', reason: 'Desktop browsers are not supported.' });
 
-    expect(root.innerHTML).toContain('WORM OS');
+    expect(root.innerHTML).toContain('WEB INSTALLER');
     expect(root.innerHTML).toContain('Mobile installer only');
     expect(root.innerHTML).toContain('Desktop browsers are not supported.');
     expect(root.innerHTML).toContain('Open worm.estixari.com on an Android device.');

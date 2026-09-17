@@ -1,0 +1,167 @@
+PATCH=worm-opnsense-install-fix-v008
+TIMESTAMP=2026-09-15 18:05:00 CEST +0200
+TIMEZONE=Europe/Rome
+
+=== WORM OPNsense INSTALL FIX V008 ===
+
+PRIMARY IPv4:
+2.28.34.27
+PRESERVED=YES
+
+SERVER:
+worm-opnsense
+
+SERVER_ID_INITIAL:
+164649753
+
+SERVER_ID_CURRENT:
+166074509
+
+NOTE:
+During the patch the original server id 164649753 began returning not_found.
+The target was realigned by server name worm-opnsense. Current server id is
+166074509 and retains primary IPv4 2.28.34.27 / primary IPv4 id 148148066.
+
+PRIVATE NETWORK DURING INSTALL:
+DETACHED
+
+INSTALL NIC:
+vtnet0
+
+CONFIG VOLUME:
+PASS
+
+CONFIG IMPORT:
+MANUAL_CONSOLE_REQUIRED
+
+WAN:
+vtnet0
+
+WAN IPv4:
+2.28.34.27/32
+
+WAN GATEWAY:
+172.31.1.1
+
+LAN:
+NONE
+
+INSTALL:
+MANUAL_CONSOLE_REQUIRED
+
+FIRST BOOT:
+PENDING
+
+PRIVATE NETWORK REATTACHED:
+NO
+
+EXPECTED FINAL NICs:
+vtnet0 = WAN PUBLIC
+vtnet1 = PRIVATE
+
+FINAL:
+REVIEW_REQUIRED
+
+AUDIT CLOUD:
+- Current server found by name: worm-opnsense.
+- Current server id: 166074509.
+- Status after reboot: running.
+- Primary IPv4: 2.28.34.27.
+- Primary IPv4 id: 148148066.
+- Private network count after detach/reboot: 0.
+- ISO attached: OPNsense-25.7-dvd-amd64.iso.
+- Volume attached: 106875524.
+
+PRIVATE NETWORK SAVED:
+- Saved to /opt/worm/network/generated/opnsense-private-network-before-install.json.
+- Saved network id: 12619353.
+- Saved network name: worm-private.
+- Saved private IP: 10.90.10.1.
+- Saved private MAC: 86:00:00:2d:d1:bf.
+- Saved alias IPs: [].
+- The private network was detached and must not be reattached until PUBLIC_WAN_READY=YES.
+
+CONFIG.XML:
+- Path: /opt/worm/network/generated/opnsense-bootstrap/config.xml.
+- BOOTSTRAP_CONFIG=PASS.
+- WAN interface: vtnet0.
+- WAN IPv4: 2.28.34.27.
+- WAN prefix: 32.
+- WAN gateway ref: WAN_GW.
+- Gateway: 172.31.1.1.
+- LAN: absent.
+- OPT: absent.
+- IPv6: not configured initially.
+
+CONFIG VOLUME:
+- Target volume id: 106875524.
+- Target volume name: worm-opnsense-config.
+- Attached to current worm-opnsense server id 166074509.
+- Current config.xml SHA256: d4b30b0a4633ee7eaeba742d0208dd30a2fb3fc325239a1d68c8de14d08c0e97.
+- Historical config-volume preparation log reports:
+  CONFIG_XML_SHA256=d4b30b0a4633ee7eaeba742d0208dd30a2fb3fc325239a1d68c8de14d08c0e97
+  CONFIG_VOLUME_READY=YES
+- No volume formatting was performed in v008.
+
+REBOOT ISO:
+- Reboot action completed with success.
+- Server is running with OPNsense ISO still attached.
+- Since private_net_count=0, Hetzner Cloud private NIC should not be presented to the live installer.
+
+ABORT / MANUAL REQUIREMENT:
+- Console/live ifconfig cannot be verified via Cloud API.
+- Do not proceed with install until console confirms:
+  1. vtnet0 exists.
+  2. There is no private vtnet1 from worm-private.
+  3. OPNsense Importer finds /conf/config.xml.
+  4. Imported config shows WAN=vtnet0, 2.28.34.27/32, gateway 172.31.1.1, LAN=NONE.
+- If LAN vtnet0 192.168.1.1 appears again, set CONFIG_IMPORT=FAIL and do not install.
+
+NEXT_ACTION:
+1. Open Hetzner Cloud console for current server id 166074509.
+2. Run ifconfig in OPNsense live before install.
+3. Confirm only public NIC path is visible for install.
+4. Confirm Importer sees /conf/config.xml on worm-opnsense-config volume.
+5. Only after CONFIG_IMPORT=PASS and WAN=vtnet0, install to MAIN DISK.
+6. Never install to volume 106875524.
+7. After first boot from main disk, verify WAN public reachability.
+8. Only after PUBLIC_WAN_READY=YES, reattach worm-private using saved metadata.
+
+BACKUPS:
+- /opt/worm/network/backup/v008-20260915-180500/server-query-before.json
+- /opt/worm/network/backup/v008-20260915-180500/networks-before.json
+- /opt/worm/network/backup/v008-20260915-180500/volumes-before.json
+- /opt/worm/network/backup/v008-20260915-180500/isos-before.json
+- /opt/worm/network/backup/v008-20260915-180500/config.xml.before
+- /opt/worm/network/backup/v008-20260915-180500/server-after-detach.json
+- /opt/worm/network/backup/v008-20260915-180500/network-after-detach.json
+- /opt/worm/network/backup/v008-20260915-180500/server-query-after-realign.json
+- /opt/worm/network/backup/v008-20260915-180500/volumes-current.json
+- /opt/worm/network/backup/v008-20260915-180500/helper-format-config-volume-recreate-v001.log.bak
+- /opt/worm/network/backup/v008-20260915-180500/config.xml.final
+- /opt/worm/network/backup/v008-20260915-180500/reboot-iso-action.json
+- /opt/worm/network/backup/v008-20260915-180500/reboot-iso-action.poll.json
+- /opt/worm/network/backup/v008-20260915-180500/server-after-reboot.json
+
+CHANGES_APPLIED:
+- Saved current private network metadata for post-install reattach.
+- Detached worm-private from worm-opnsense.
+- Confirmed private_net_count=0.
+- Confirmed public primary IPv4 2.28.34.27 preserved.
+- Confirmed bootstrap config XML passes validation.
+- Confirmed worm-opnsense-config volume is attached to current worm-opnsense.
+- Rebooted current worm-opnsense on attached OPNsense ISO.
+
+CHANGES_NOT_APPLIED:
+- Did not modify public IPv4.
+- Did not modify primary IP.
+- Did not delete worm-private.
+- Did not delete subnet.
+- Did not delete vSwitch.
+- Did not modify Robot.
+- Did not reattach private network.
+- Did not install OPNsense.
+- Did not provide blind console input.
+
+SECRETS:
+- No token, password, API secret, or private key values intentionally printed in this result.

@@ -1,0 +1,340 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+KEYSET_DEFAULT="/opt/worm/keys/release/frankel-installed-2026091100"
+BACKUP_ROOT="/opt/worm/keys/.rotation-backups"
+
+die() {
+    printf 'ERROR: %s\n' "$*" >&2
+    exit 1
+}
+
+info() {
+    printf '[*] %s\n' "$*"
+}
+
+ok() {
+    printf '[+] %s\n' "$*"
+}
+
+[[ -r /dev/tty && -w /dev/tty ]] || die "Serve un TTY interattivo reale."
+command -v openssl >/dev/null || die "openssl non trovato."
+mountpoint -q /dev/shm || die "/dev/shm non disponibile. Rotazione annullata."
+
+KEYSET="${1:-$KEYSET_DEFAULT}"
+[[ -d "$KEYSET" ]] || die "Keyset non trovato: $KEYSET"
+
+TMPDIR="$(mktemp -d /dev/shm/worm-key-rotate.XXXXXX)"
+chmod 700 "$TMPDIR"
+
+cleanup() {
+    unset OLD_PASS NEW_PASS NEW_PASS_CONFIRM || true
+
+    if [[ -n "${TMPDIR:-}" && -d "$TMPDIR" ]]; then
+        find "$TMPDIR" -type f -exec sh -c '
+            for f do
+                size=$(stat -c %s "$f" 2>/dev/null || echo 0)
+                if [ "$size" -gt 0 ]; then
+                    dd if=/dev/zero of="$f" bs=4096 count=$(( (size + 4095) / 4096 )) \
+                       conv=notrunc status=none 2>/dev/null || true
+                fi
+                rm -f -- "$f"
+            done
+        ' sh {} +
+        rmdir "$TMPDIR" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
+printf '\nWorm OS key passphrase rotation\n'
+printf 'Keyset: %s\n\n' "$KEYSET"
+
+printf 'Vecchia passphrase: ' >/dev/tty
+IFS= read -r -s OLD_PASS </dev/tty
+printf '\n' >/dev/tty
+
+printf 'Nuova passphrase: ' >/dev/tty
+IFS= read -r -s NEW_PASS </dev/tty
+printf '\n' >/dev/tty
+
+printf 'Conferma nuova passphrase: ' >/dev/tty
+IFS= read -r -s NEW_PASS_CONFIRM </dev/tty
+printf '\n' >/dev/tty
+
+[[ -n "$OLD_PASS" ]] || die "Vecchia passphrase vuota."
+[[ -n "$NEW_PASS" ]] || die "Nuova passphrase vuota."
+[[ "$NEW_PASS" == "$NEW_PASS_CONFIRM" ]] || die "Le nuove passphrase non coincidono."
+[[ "$OLD_PASS" != "$NEW_PASS" ]] || die "La nuova passphrase deve essere diversa."
+
+unset NEW_PASS_CONFIRM
+
+mapfile -t PK8_KEYS < <(
+    find "$KEYSET" -maxdepth 1 -type f -name '*.pk8' -print | sort
+)
+
+((${#PK8_KEYS[@]} > 0)) || die "Nessuna chiave .pk8 trovata."
+
+info "Chiavi Android trovate: ${#PK8_KEYS[@]}"
+
+# ------------------------------------------------------------
+# 1. Verifica TUTTE le vecchie password prima di modificare file
+# ------------------------------------------------------------
+
+for key in "${PK8_KEYS[@]}"; do
+    name="$(basename "$key")"
+    info "Verifica $name"
+
+    tmp="$TMPDIR/${name}.verify.pem"
+
+    if ! printf '%s\n' "$OLD_PASS" |
+        openssl pkcs8 \
+            -inform DER \
+            -in "$key" \
+            -passin stdin \
+            -out "$tmp" \
+            >/dev/null 2>&1
+    then
+        die "La vecchia passphrase non apre $name. Nessun file modificato."
+    fi
+
+    chmod 600 "$tmp"
+done
+
+ok "Vecchia passphrase verificata su tutte le chiavi .pk8."
+
+# ------------------------------------------------------------
+# 2. Backup protetto
+# ------------------------------------------------------------
+
+timestamp="$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="$BACKUP_ROOT/$timestamp"
+
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_ROOT" "$BACKUP_DIR"
+
+for key in "${PK8_KEYS[@]}"; do
+    cp -a -- "$key" "$BACKUP_DIR/"
+done
+
+# Certificati pubblici utili alla verifica/restore.
+find "$KEYSET" -maxdepth 1 -type f -name '*.x509.pem' \
+    -exec cp -a -- {} "$BACKUP_DIR/" \;
+
+if [[ -f "$KEYSET/avb.pem" ]]; then
+    cp -a -- "$KEYSET/avb.pem" "$BACKUP_DIR/"
+fi
+
+if [[ -f "$KEYSET/avb_pkmd.bin" ]]; then
+    cp -a -- "$KEYSET/avb_pkmd.bin" "$BACKUP_DIR/"
+fi
+
+ok "Backup creato: $BACKUP_DIR"
+
+# ------------------------------------------------------------
+# 3. Ruota ogni PKCS#8 mantenendo la stessa private key
+# ------------------------------------------------------------
+
+for key in "${PK8_KEYS[@]}"; do
+    name="$(basename "$key")"
+    stem="${name%.pk8}"
+
+    plaintext="$TMPDIR/${stem}.plain.pem"
+    rotated="$TMPDIR/${stem}.new.pk8"
+
+    info "Rotazione $name"
+
+    printf '%s\n' "$OLD_PASS" |
+        openssl pkcs8 \
+            -inform DER \
+            -in "$key" \
+            -passin stdin \
+            -out "$plaintext" \
+            >/dev/null 2>&1 \
+        || die "Decifratura fallita: $name"
+
+    chmod 600 "$plaintext"
+
+    before_pub="$TMPDIR/${stem}.before.pub.der"
+    openssl pkey \
+        -in "$plaintext" \
+        -pubout \
+        -outform DER \
+        -out "$before_pub" \
+        >/dev/null 2>&1 \
+        || die "Impossibile derivare public key: $name"
+
+    printf '%s\n' "$NEW_PASS" |
+        openssl pkcs8 \
+            -topk8 \
+            -inform PEM \
+            -outform DER \
+            -in "$plaintext" \
+            -out "$rotated" \
+            -v2 aes-256-cbc \
+            -passout stdin \
+            >/dev/null 2>&1 \
+        || die "Ricifratura fallita: $name"
+
+    chmod 600 "$rotated"
+
+    verify_plain="$TMPDIR/${stem}.verify-new.pem"
+
+    printf '%s\n' "$NEW_PASS" |
+        openssl pkcs8 \
+            -inform DER \
+            -in "$rotated" \
+            -passin stdin \
+            -out "$verify_plain" \
+            >/dev/null 2>&1 \
+        || die "Nuova passphrase non valida su $name"
+
+    after_pub="$TMPDIR/${stem}.after.pub.der"
+
+    openssl pkey \
+        -in "$verify_plain" \
+        -pubout \
+        -outform DER \
+        -out "$after_pub" \
+        >/dev/null 2>&1 \
+        || die "Impossibile verificare public key dopo rotazione: $name"
+
+    cmp -s "$before_pub" "$after_pub" \
+        || die "IDENTITÀ CAMBIATA per $name. File originale preservato."
+
+    cert="$KEYSET/${stem}.x509.pem"
+
+    if [[ -f "$cert" ]]; then
+        cert_pub="$TMPDIR/${stem}.cert.pub.der"
+
+        openssl x509 \
+            -in "$cert" \
+            -pubkey \
+            -noout 2>/dev/null |
+        openssl pkey \
+            -pubin \
+            -outform DER \
+            -out "$cert_pub" \
+            >/dev/null 2>&1 \
+            || die "Impossibile verificare certificato $cert"
+
+        cmp -s "$after_pub" "$cert_pub" \
+            || die "Private key $name non corrisponde più al certificato."
+    fi
+
+    owner="$(stat -c '%u' "$key")"
+    group="$(stat -c '%g' "$key")"
+    mode="$(stat -c '%a' "$key")"
+
+    install \
+        -o "$owner" \
+        -g "$group" \
+        -m "$mode" \
+        "$rotated" \
+        "${key}.new"
+
+    mv -f -- "${key}.new" "$key"
+
+    # Ultimo controllo sul file effettivamente installato.
+    if ! printf '%s\n' "$NEW_PASS" |
+        openssl pkcs8 \
+            -inform DER \
+            -in "$key" \
+            -passin stdin \
+            -noout \
+            >/dev/null 2>&1
+    then
+        die "Verifica post-sostituzione fallita per $name. Usa backup: $BACKUP_DIR"
+    fi
+
+    ok "$name ruotata; identità pubblica invariata."
+done
+
+# ------------------------------------------------------------
+# 4. AVB
+# ------------------------------------------------------------
+
+if [[ -f "$KEYSET/avb.pem" ]]; then
+    printf '\n'
+    info "Controllo avb.pem"
+
+    if grep -q 'ENCRYPTED' "$KEYSET/avb.pem"; then
+        printf '%s\n' \
+            "avb.pem risulta cifrata." \
+            "Per sicurezza NON viene convertita automaticamente da questo script." \
+            "Le .pk8 Android sono state ruotate; AVB richiede validazione separata" \
+            "con la toolchain avbtool prima di alterarne il formato."
+    else
+        info "avb.pem non risulta protetta da passphrase: lasciata invariata."
+    fi
+fi
+
+# ------------------------------------------------------------
+# 5. Test negativo vecchia password
+# ------------------------------------------------------------
+
+sample="${PK8_KEYS[0]}"
+
+if printf '%s\n' "$OLD_PASS" |
+    openssl pkcs8 \
+        -inform DER \
+        -in "$sample" \
+        -passin stdin \
+        -noout \
+        >/dev/null 2>&1
+then
+    die "La vecchia passphrase apre ancora la chiave campione."
+else
+    ok "Vecchia passphrase rifiutata dopo rotazione."
+fi
+
+# ------------------------------------------------------------
+# 6. Test positivo nuova password su tutte le chiavi
+# ------------------------------------------------------------
+
+for key in "${PK8_KEYS[@]}"; do
+    if ! printf '%s\n' "$NEW_PASS" |
+        openssl pkcs8 \
+            -inform DER \
+            -in "$key" \
+            -passin stdin \
+            -noout \
+            >/dev/null 2>&1
+    then
+        die "Nuova passphrase non apre $(basename "$key")."
+    fi
+done
+
+ok "Nuova passphrase verificata su tutte le chiavi."
+
+# ------------------------------------------------------------
+# 7. Report senza secret
+# ------------------------------------------------------------
+
+REPORT="/opt/worm/artifacts/key-rotation-v010/manual-rotation-result.txt"
+mkdir -p "$(dirname "$REPORT")"
+
+cat >"$REPORT" <<EOF
+ROTATION_STATUS=PASS
+KEYSET=$KEYSET
+KEYS_ROTATED=${#PK8_KEYS[@]}
+PUBLIC_IDENTITIES_UNCHANGED=YES
+ANDROID_KEY_CERT_MATCH=PASS
+OLD_PASSPHRASE_REJECTED_AFTER_ROTATION=YES
+NEW_PASSPHRASE_VALIDATION=PASS
+BACKUP_PATH=$BACKUP_DIR
+AVB_KEY_AUTOMATIC_ROTATION=NO
+NEXT_ACTION=RUN_AVB_AND_SIGNING_PRECHECK
+EOF
+
+chmod 600 "$REPORT"
+
+unset OLD_PASS NEW_PASS
+
+printf '\n'
+ok "Rotazione completata."
+printf 'Backup: %s\n' "$BACKUP_DIR"
+printf 'Report: %s\n' "$REPORT"
+printf '\n'
+printf 'IMPORTANTE: avb.pem non viene modificata automaticamente.\n'
+printf 'Esegui ora il precheck AVB/signing prima di firmare.\n'

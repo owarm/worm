@@ -8,11 +8,13 @@ export const INSTALLER_STATES = [
   'WAITING_USER_UNLOCK',
   'UNLOCKED',
   'DOWNLOADING',
+  'DOWNLOAD_PAUSED',
   'DOWNLOADED',
   'VERIFYING',
   'VERIFIED',
   'FLASHING',
   'WAITING_FOR_RECONNECT',
+  'WAITING_FOR_FLASH_RESUME',
   'RECONNECTING',
   'WAITING_MANUAL_RECONNECT',
   'FLASH_COMPLETE',
@@ -33,6 +35,7 @@ export type SafeStage =
   | 'DEVICE_VERIFIED'
   | 'UNLOCK_REQUIRED'
   | 'UNLOCKED'
+  | 'DOWNLOAD_PAUSED'
   | 'DOWNLOADED'
   | 'VERIFIED'
   | 'FLASH_COMPLETE'
@@ -48,9 +51,15 @@ export type DeviceInfo = {
 };
 
 export type ReleaseManifest = {
-  schema: 1;
+  schema?: 1;
   channel: string;
   device: 'frankel';
+  build?: string;
+  android?: string;
+  install_url?: string;
+  ota_url?: string;
+  sha256?: string;
+  build_timestamp?: string;
   release: {
     id: string;
     file: string;
@@ -83,6 +92,8 @@ export type PersistedInstallerMetadata = {
   expectedProduct?: string;
   expectedSerial?: string;
   lastSafeStage?: SafeStage;
+  installerStage?: InstallerState;
+  flashStepIndex?: number;
 };
 
 export type LogLevel =
@@ -137,6 +148,18 @@ export type DownloadProgress = {
   status: string;
 };
 
+export type VerifyProgress = {
+  state: 'idle' | 'checking-cache' | 'verifying' | 'verified' | 'failed';
+  verifiedBytes: number;
+  totalBytes: number;
+  percent: number;
+  expectedSha256: string | null;
+  actualSha256: string | null;
+  metadataVerified: boolean;
+  fileAvailable: boolean;
+  fileSize: number | null;
+};
+
 export type FlashProgress = {
   operation: string;
   item: string | null;
@@ -148,6 +171,8 @@ export type FlashProgress = {
 
 export type AppState = {
   sessionId: string;
+  testMode: boolean;
+  testReconnectSequence: number;
   installerState: InstallerState;
   deviceInfo: DeviceInfo;
   release: ReleaseManifest | null;
@@ -167,6 +192,7 @@ export type AppState = {
   releaseComplete: boolean;
   releaseVerified: boolean;
   releaseFileAvailable: boolean;
+  verify: VerifyProgress;
 };
 
 export type StateListener = (state: AppState) => void;
@@ -186,7 +212,7 @@ export class InstallerStateError extends InstallerError {
 }
 
 export class UnsupportedDeviceError extends InstallerError {
-  constructor(message = 'This device is not supported by the Worm OS installer.') {
+  constructor(message = 'This device is not supported by the web installer.') {
     super(message);
     this.name = 'UnsupportedDeviceError';
   }

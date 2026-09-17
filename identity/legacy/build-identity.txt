@@ -1,0 +1,10 @@
+avb_vbmeta_algorithm=SHA256_RSA4096
+avb_vbmeta_key_path=/opt/worm-release-keys/frankel-new-20260911-050526/avb.pem
+ro.build.id=CP2A.260805.005
+ro.build.tags=release-keys
+ro.build.type=user
+ro.build.version.preview_sdk_fingerprint=REL
+ro.build.version.release=17
+ro.build.version.security_patch=2026-08-05
+ro.system.build.fingerprint=Android/generic_system/generic:17/CP2A.260805.005/eng.root:user/release-keys
+ro.vendor.build.fingerprint=google/frankel/frankel:17/CP2A.260805.005/eng.root:user/release-keys

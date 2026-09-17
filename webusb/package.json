@@ -10,12 +10,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "vite build",
-    "deploy:check": "bash -n scripts/deploy-production.sh && bash -n scripts/update-production.sh && test -f dist/index.html && test -f nginx/worm-webusb.conf && grep -q \"root /var/www/worm-webusb;\" nginx/worm-webusb.conf && grep -q \"try_files \\$uri \\$uri/ /index.html;\" nginx/worm-webusb.conf && grep -q \"Permissions-Policy.*usb=(self)\" nginx/worm-webusb.conf && grep -q \"Content-Security-Policy\" nginx/worm-webusb.conf && grep -q \"worker-src 'self' blob:\" nginx/worm-webusb.conf && grep -q \"auth_basic \\\"Worm OS Installer\\\";\" nginx/worm-webusb.conf && grep -q \"auth_basic_user_file /etc/nginx/.worm-webusb.htpasswd;\" nginx/worm-webusb.conf && ! find dist -type l -print -quit | grep -q . && ! find dist \\( -path '*/keys' -o -path '*/keys/*' -o -path '*/source' -o -path '*/source/*' \\) -print -quit | grep -q . && ! grep -R \"unsafe-eval\\|unsafe-inline\" dist nginx/worm-webusb.conf",
+    "deploy:check": "bash -n scripts/deploy-production.sh && bash -n scripts/update-production.sh && test -f dist/index.html && test -f nginx/worm-webusb.conf && grep -q \"root /var/www/worm-webusb;\" nginx/worm-webusb.conf && grep -q \"try_files \\$uri \\$uri/ /index.html;\" nginx/worm-webusb.conf && grep -q \"Permissions-Policy.*usb=(self)\" nginx/worm-webusb.conf && grep -q \"Content-Security-Policy\" nginx/worm-webusb.conf && grep -q \"worker-src 'self' blob:\" nginx/worm-webusb.conf && grep -q \"auth_request /auth-verify;\" nginx/worm-webusb.conf && grep -q \"proxy_pass http://127.0.0.1:8787/auth/check;\" nginx/worm-webusb.conf && ! grep -q \"auth_basic\" nginx/worm-webusb.conf && ! find dist -type l -print -quit | grep -q . && ! find dist \\( -path '*/keys' -o -path '*/keys/*' -o -path '*/source' -o -path '*/source/*' \\) -print -quit | grep -q . && ! grep -R \"unsafe-eval\\|unsafe-inline\" dist nginx/worm-webusb.conf",
     "manifest": "node scripts/make-manifest.mjs",
     "verify-release": "node scripts/verify-release.mjs"
   },
   "dependencies": {
-    "android-fastboot": "^1.0.0"
+    "nodemailer": "^9.0.1"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

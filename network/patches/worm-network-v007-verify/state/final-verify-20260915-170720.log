@@ -1,0 +1,106 @@
+## WORM Network V007 Final Verify
+timestamp=20260915-170720
+mode=read-only
+
+## Dedicated local
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+enp9s0           UP             162.55.6.173/26 2a01:4f8:252:7ee::2/64 fe80::aaa1:59ff:fe4f:459b/64 
+enp9s0.4000@enp9s0 UP             10.20.1.2/24 
+default via 162.55.6.129 dev enp9s0 onlink 
+2.28.34.27 via 162.55.6.129 dev enp9s0 src 162.55.6.173 
+10.20.1.0/24 dev enp9s0.4000 proto kernel scope link src 10.20.1.2 
+162.55.6.128/26 via 162.55.6.129 dev enp9s0 
+162.55.6.128/26 dev enp9s0 proto kernel scope link src 162.55.6.173 
+4: enp9s0.4000@enp9s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1400 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether a8:a1:59:4f:45:9b brd ff:ff:ff:ff:ff:ff promiscuity 0 allmulti 0 minmtu 0 maxmtu 65535 
+    vlan protocol 802.1Q id 4000 <REORDER_HDR> addrgenmode eui64 numtxqueues 1 numrxqueues 1 gso_max_size 64000 gso_max_segs 64 tso_max_size 64000 tso_max_segs 64 gro_max_size 65536 gso_ipv4_max_size 64000 gro_ipv4_max_size 65536 
+
+## Cloud Network
+{
+  "id": 12619353,
+  "name": "worm-private",
+  "ip_range": "10.90.0.0/16",
+  "subnets": [
+    {
+      "gateway": "10.90.0.1",
+      "ip_range": "10.90.20.0/24",
+      "network_zone": "eu-central",
+      "type": "vswitch",
+      "vswitch_id": 85469
+    },
+    {
+      "gateway": "10.90.0.1",
+      "ip_range": "10.90.10.0/24",
+      "network_zone": "eu-central",
+      "type": "cloud",
+      "vswitch_id": null
+    }
+  ],
+  "routes": [
+    {
+      "destination": "10.60.0.0/24",
+      "gateway": "10.90.10.1"
+    }
+  ],
+  "servers": []
+}
+{
+  "id": 164649753,
+  "name": "worm-opnsense",
+  "private_net": [],
+  "public_ipv4": "2.28.34.27"
+}
+
+## Robot vSwitch
+Robot API unavailable: credentials missing
+
+## OPNsense
+OPNsense SSH unavailable: OPNSENSE_SSH_HOST missing
+
+## Connectivity
+PING 10.20.0.2 (10.20.0.2) 56(84) bytes of data.
+
+--- 10.20.0.2 ping statistics ---
+2 packets transmitted, 0 received, 100% packet loss, time 1036ms
+
+2a04:4e42:600::644 debian.org
+2a04:4e42::644  debian.org
+2a04:4e42:200::644 debian.org
+2a04:4e42:400::644 debian.org
+
+=== WORM NETWORK FINAL ===
+
+DEDICATED PUBLIC:
+PASS
+
+DEDICATED PRIVATE VLAN:
+PASS
+
+VSWITCH:
+FAIL
+
+CLOUD NETWORK:
+FAIL
+
+OPNSENSE:
+FAIL
+
+ROUTING:
+FAIL
+
+NAT:
+FAIL
+
+WIREGUARD:
+FAIL
+
+FINAL STATUS:
+NOT_READY
+
+DETAILS:
+PRIVATE CLOUD=FAIL
+DEDICATED=REACHABLE
+DNS=PASS
+INTERNET=PASS
+MANAGEMENT WAN EXPOSURE=DISABLED
+LOG=/opt/worm/network/patches/worm-network-v007-verify/state/final-verify-20260915-170720.log

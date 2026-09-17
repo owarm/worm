@@ -112,9 +112,9 @@ export const renderUnsupportedHost = (root: HTMLElement, result: SupportedHostRe
             <path d="M24 21h16M24 43h16"></path>
           </svg>
         </div>
-        <p class="mobile-block-brand">WORM OS</p>
+        <p class="mobile-block-brand">WEB INSTALLER</p>
         <h1 id="mobile-block-title">Mobile installer only</h1>
-        <p>This Worm OS installer can only be used from a supported Android device with a Chromium-based browser and WebUSB.</p>
+        <p>This web installer can only be used from a supported Android device with a Chromium-based browser and WebUSB.</p>
         <p>Desktop browsers are not supported.</p>
         <p>Open worm.estixari.com on an Android device.</p>
         ${result.reason ? `<p class="mobile-block-reason">${result.reason}</p>` : ''}

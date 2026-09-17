@@ -1,0 +1,7 @@
+config/secrets.env
+logs/*
+backup/*
+generated/*
+state/*
+
+!.gitignore

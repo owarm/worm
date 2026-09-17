@@ -196,9 +196,6 @@ server {
     server_tokens off;
     autoindex off;
 
-    auth_basic "Worm OS Installer";
-    auth_basic_user_file /etc/nginx/.worm-webusb.htpasswd;
-
     gzip on;
     gzip_vary on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -209,7 +206,44 @@ server {
     add_header Permissions-Policy "usb=(self)" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; worker-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
 
+    location ^~ /.well-known/acme-challenge/ {
+        auth_request off;
+        try_files \$uri =404;
+    }
+
+    location = /auth-verify {
+        internal;
+        proxy_pass http://127.0.0.1:8787/auth/check;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Cookie \$http_cookie;
+        proxy_set_header X-Original-URI \$request_uri;
+    }
+
+    location ^~ /auth/ {
+        auth_request off;
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        add_header Cache-Control "no-store" always;
+    }
+
+    location = /manifest.json {
+        auth_request /auth-verify;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Permissions-Policy "usb=(self)" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; worker-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
+        add_header Cache-Control "no-cache" always;
+        try_files \$uri =404;
+    }
+
     location = /index.html {
+        auth_request /auth-verify;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "no-referrer" always;
         add_header X-Frame-Options "DENY" always;
@@ -220,6 +254,18 @@ server {
     }
 
     location /assets/ {
+        auth_request /auth-verify;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Permissions-Policy "usb=(self)" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; worker-src 'self' blob:; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files \$uri =404;
+    }
+
+    location /fastboot/ {
+        auth_request /auth-verify;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "no-referrer" always;
         add_header X-Frame-Options "DENY" always;
@@ -230,6 +276,7 @@ server {
     }
 
     location /releases/ {
+        auth_request /auth-verify;
         gzip off;
         add_header X-Content-Type-Options "nosniff" always;
         add_header Referrer-Policy "no-referrer" always;
@@ -246,6 +293,7 @@ server {
     }
 
     location / {
+        auth_request /auth-verify;
         try_files \$uri \$uri/ /index.html;
     }
 }

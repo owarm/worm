@@ -4,9 +4,10 @@ import { InstallerError } from './types';
 import type { BlobStore } from './blob-store';
 import type { LogCategory, LogLevel } from './types';
 
-export const MANIFEST_URL = '/manifest.json';
+export const MANIFEST_URL = '/releases/stable/frankel.json';
+export const LEGACY_MANIFEST_URL = '/manifest.json';
 const SHA256_HEX = /^[a-f0-9]{64}$/i;
-const SAFE_RELEASE_PATH = /^\/releases\/[A-Za-z0-9._-]+\.zip$/;
+const SAFE_RELEASE_PATH = /^\/releases\/(?:[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+\.zip$/;
 const SAFE_RELEASE_ID = /^[A-Za-z0-9._-]+$/;
 const CHECKPOINT_BYTES = 8 * 1024 * 1024;
 const CHECKPOINT_MS = 2_000;
@@ -17,6 +18,13 @@ type RawManifest = {
   schema?: unknown;
   channel?: unknown;
   device?: unknown;
+  build?: unknown;
+  android?: unknown;
+  install_url?: unknown;
+  ota_url?: unknown;
+  sha256?: unknown;
+  size?: unknown;
+  build_timestamp?: unknown;
   release?: {
     id?: unknown;
     file?: unknown;
@@ -45,17 +53,26 @@ export const isSafeReleaseId = (id: string): boolean =>
 
 export const validateReleaseManifest = (value: unknown, locationOrigin = currentOrigin()): ReleaseManifest => {
   const raw = value as RawManifest;
-  if (raw.schema !== 1) {
+  if (raw.schema !== undefined && raw.schema !== 1) {
     throw new InstallerError('Unsupported release manifest schema.');
   }
   if (raw.device !== DEVICE_TARGET.codename) {
     throw new InstallerError(`Release device ${String(raw.device)} is not supported.`);
   }
-  if (!raw.release || typeof raw.release !== 'object') {
+  const descriptorStyle = typeof raw.build === 'string' || typeof raw.install_url === 'string';
+  const release = descriptorStyle
+    ? {
+        id: raw.build,
+        file: raw.install_url,
+        sha256: raw.sha256,
+        size: raw.size
+      }
+    : raw.release;
+  if (!release || typeof release !== 'object') {
     throw new InstallerError('Release manifest is missing release details.');
   }
 
-  const { id, file, sha256, size } = raw.release;
+  const { id, file, sha256, size } = release as RawManifest['release'] & { size?: unknown };
   if (typeof id !== 'string' || id.trim().length === 0) {
     throw new InstallerError('Release manifest is missing release id.');
   }
@@ -78,10 +95,11 @@ export const validateReleaseManifest = (value: unknown, locationOrigin = current
   const base = getReleaseBaseUrl();
   const url = new URL(file, base ?? locationOrigin);
   const allowedOrigin = base ? new URL(base).origin : locationOrigin;
-  if (url.origin !== allowedOrigin) {
+  const isReleaseHost = url.origin === 'https://releases.coffee.pm';
+  if (url.origin !== allowedOrigin && !isReleaseHost) {
     throw new InstallerError('Release URL cross-origin is not authorized.');
   }
-  if (!base && !SAFE_RELEASE_PATH.test(file)) {
+  if (!base && url.origin === locationOrigin && !SAFE_RELEASE_PATH.test(file)) {
     throw new InstallerError('Release file path is not safe.');
   }
   if (file.includes('..') || file.includes('\\')) {
@@ -92,6 +110,12 @@ export const validateReleaseManifest = (value: unknown, locationOrigin = current
     schema: 1,
     channel: raw.channel,
     device: DEVICE_TARGET.codename,
+    build: typeof raw.build === 'string' ? raw.build : id,
+    android: typeof raw.android === 'string' ? raw.android : undefined,
+    install_url: file,
+    ota_url: typeof raw.ota_url === 'string' ? raw.ota_url : undefined,
+    sha256: sha256.toLowerCase(),
+    build_timestamp: typeof raw.build_timestamp === 'string' ? raw.build_timestamp : undefined,
     release: {
       id,
       file,
@@ -102,7 +126,10 @@ export const validateReleaseManifest = (value: unknown, locationOrigin = current
 };
 
 export const fetchReleaseManifest = async (log?: ReleaseLog): Promise<ReleaseManifest> => {
-  const response = await fetch(MANIFEST_URL, { cache: 'no-store' });
+  let response = await fetch(MANIFEST_URL, { cache: 'no-store' });
+  if (!response.ok && response.status === 404) {
+    response = await fetch(LEGACY_MANIFEST_URL, { cache: 'no-store' });
+  }
   if (!response.ok) {
     log?.('ERROR', `Manifest loading failed: HTTP ${response.status}`, { status: response.status });
     throw new InstallerError(`Unable to fetch release manifest: HTTP ${response.status}.`);
@@ -111,6 +138,12 @@ export const fetchReleaseManifest = async (log?: ReleaseLog): Promise<ReleaseMan
     const manifest = validateReleaseManifest(await response.json());
     return manifest;
   } catch (error) {
+    if (response.url.endsWith(MANIFEST_URL) || response.url === '' || response.url.endsWith('/releases/stable/frankel.json')) {
+      const legacy = await fetch(LEGACY_MANIFEST_URL, { cache: 'no-store' });
+      if (legacy.ok) {
+        return validateReleaseManifest(await legacy.json());
+      }
+    }
     const message = error instanceof Error ? error.message : String(error);
     log?.('ERROR', `Manifest validation failed: ${message}`, { validation: 'invalid', reason: message });
     throw error;
@@ -194,9 +227,8 @@ export const inspectStoredRelease = async (
     if (file && metadata) {
       log?.('WARN', 'Manifest changed', { cachedReleaseId: metadata.releaseId, currentReleaseId: manifest.release.id }, 'DOWNLOAD');
       log?.('WARN', 'Cache invalidated', { key }, 'DOWNLOAD');
-    } else {
     }
-    return { file, metadata, complete: false, verified: false };
+    return { file: null, metadata, complete: false, verified: false };
   }
 
   const complete = file.size === manifest.release.size && metadata.complete;
@@ -206,7 +238,7 @@ export const inspectStoredRelease = async (
   } else if (complete) {
     onProgress(progressFromBytes(manifest, file.size, 'Release already downloaded.', false));
   } else if (file.size > 0) {
-    onProgress(progressFromBytes(manifest, file.size, 'Partial Worm OS release found.', false));
+    onProgress(progressFromBytes(manifest, file.size, 'Partial installation image found.', false));
   }
   return { file, metadata, complete, verified };
 };

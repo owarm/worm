@@ -1,0 +1,179 @@
+PATCH=worm-opnsense-dhcp-only-v009
+TIMESTAMP=2026-09-15 18:22:21 CEST +0200
+TIMEZONE=Europe/Rome
+
+=== WORM OPNsense DHCP-ONLY V009 ===
+
+SERVER:
+worm-opnsense
+id=166074509
+
+PRIMARY IPv4:
+2.28.34.27
+
+PRIVATE NETWORK:
+DETACHED=YES
+
+CONFIG:
+VALID=YES
+
+CONFIG VOLUME:
+id=106875524
+name=worm-opnsense-config
+FAT32=YES
+/conf/config.xml=PASS
+attached_to_opnsense=YES
+
+ISO:
+OPNsense 25.7 (amd64)
+attached=YES
+
+INSTALL NIC:
+vtnet0
+
+TARGET:
+WAN=vtnet0
+IPv4=DHCP
+LAN=NONE
+OPT=NONE
+
+CONFIG IMPORT:
+MANUAL_REQUIRED
+
+INSTALL:
+MANUAL_REQUIRED
+
+FINAL:
+REVIEW_REQUIRED
+
+DISCOVERY:
+- SERVER_ID=166074509
+- STATUS=running
+- LOCATION=fsn1
+- PRIMARY_IPV4=2.28.34.27
+- PRIMARY_IPV6=None
+- PRIVATE_NET_COUNT=0
+- VOLUMES=[106875524]
+- ISO=OPNsense 25.7 (amd64)
+
+BACKUP_DIR:
+/opt/worm/network/backup/v009-20260915-182221
+
+METADATA_BACKUPS:
+- server.json
+- network.json
+- volumes.json
+- iso.json
+- servers-all-before-helper.json
+- server-before-reboot.json
+- server-final.json
+- volume-final.json
+
+PRIVATE_NETWORK:
+- At v009 discovery private_net_count was already 0.
+- /opt/worm/network/generated/opnsense-private-net-before-install.json was written with an empty private_networks list and note=already_detached.
+- No private Cloud Network was reattached.
+- worm-private was not deleted.
+- vSwitch was not modified.
+- Robot was not modified.
+
+CONFIG_XML:
+- Path: /opt/worm/network/generated/opnsense-bootstrap/config.xml
+- SHA256=86193da2c0dab3af34f9d823f0037f4e3127dd6fbdc6fecf990ab920bafdac3d
+- Exact DHCP-only target written:
+  WAN=vtnet0
+  ipaddr=dhcp
+  LAN absent
+  OPT absent
+  dhcpd absent
+- Validator created: /opt/worm/network/bin/validate-opnsense-dhcp-config.sh
+- Validator output: CONFIG_VALID=YES
+
+CONFIG_VOLUME_PREP:
+- No existing reusable Linux helper was present.
+- Temporary helper created:
+  name=worm-volume-helper-temp
+  id=166085884
+  ipv4=116.202.96.162
+  server_type=cpx22
+  location=fsn1
+- Temporary SSH key id=130055783 was created and then deleted.
+- Local temporary private/public helper keys were removed after helper deletion.
+- Volume 106875524 was detached from worm-opnsense.
+- Volume 106875524 was attached to helper without automount.
+- Helper identified the target disk via /dev/disk/by-id/scsi-0HC_Volume_106875524.
+- Helper verified serial 0HC_Volume_106875524 and size 10737418240 bytes.
+- Helper ran wipefs only on that identified volume.
+- Helper created GPT and one FAT32 partition.
+- FAT32 label: OPNSENSECFG.
+- Mounted copy checksum matched source checksum.
+- Read-only remount verification passed.
+- /conf/config.xml exists on the volume.
+- CONFIG_VOLUME_READY=YES.
+- Volume was detached from helper.
+- Helper server was deleted after successful volume detach.
+- Volume was reattached to worm-opnsense without automount.
+
+CONFIG_VOLUME_FORMAT_LOG:
+/opt/worm/network/backup/v009-20260915-182221/helper-format-volume.log
+
+FINAL_API_STATE:
+- server_id=166074509
+- server_status=running
+- primary_ipv4=2.28.34.27
+- private_net_count=0
+- iso=OPNsense 25.7 (amd64)
+- volumes=[106875524]
+- volume_id=106875524
+- volume_name=worm-opnsense-config
+- volume_server=166074509
+- helper_servers_remaining=0
+
+REBOOT_TO_ISO:
+- Reboot action completed with success.
+- Server is running.
+- ISO remains attached.
+- Private network remains detached.
+
+SINGLE_NIC_VERIFY:
+- API verifies private_net_count=0, so Hetzner Cloud private NIC should not be presented.
+- Live ifconfig/console verification was not possible from API/SSH in this run.
+- ONLY_INSTALL_NIC=vtnet0 remains the required console check before install.
+
+CONFIG_IMPORT:
+- Cannot be proven from Cloud API alone.
+- MANUAL_IMPORTER_REQUIRED=YES.
+- Console path: Configuration Importer -> select config volume.
+- Abort if OPNsense shows LAN vtnet0 192.168.1.1/24 after import.
+
+INSTALLER:
+- MANUAL_INSTALLER_REQUIRED=YES.
+- No blind installer input was sent.
+- OPNsense was not installed in v009.
+
+EXPECTED_POST_INSTALL:
+- WAN=vtnet0
+- IPv4=DHCP
+- LAN=NONE
+- OPT=NONE
+- PRIVATE_NETWORK=DETACHED
+- CONFIG_VOLUME=ATTACHED
+
+CHANGES_APPLIED:
+- Wrote DHCP-only config.xml.
+- Created DHCP config validator.
+- Prepared worm-opnsense-config volume as FAT32 with /conf/config.xml.
+- Rebooted worm-opnsense on attached OPNsense ISO.
+- Deleted temporary helper server.
+- Removed temporary SSH key from Hetzner Cloud.
+
+CHANGES_NOT_APPLIED:
+- Did not configure vSwitch.
+- Did not reattach worm-private.
+- Did not create LAN.
+- Did not create OPT.
+- Did not install OPNsense.
+- Did not send blind console input.
+
+SECRETS:
+- HETZNER_CLOUD_TOKEN was required and used but never intentionally printed.

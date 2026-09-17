@@ -9,7 +9,7 @@ const DB_VERSION = 3;
 const CURRENT_SESSION_KEY = 'worm-os-installer:current-log-session';
 const RING_BUFFER_SIZE = 300;
 const DEDUPE_WINDOW_MS = 10_000;
-const SECRET_KEYS = /authorization|auth|private|token|password|secret|credential|keyMaterial|passphrase|stack/i;
+const SECRET_KEYS = /authorization|auth|private|token|password|secret|credential|keyMaterial|passphrase/i;
 const SERIAL_VALUE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,}$/;
 const TECHNICAL_LEVELS = new Set<LogLevel>([
   'FASTBOOT',
@@ -26,7 +26,7 @@ const TECHNICAL_LEVELS = new Set<LogLevel>([
   'BROWSER'
 ]);
 const NOISY_MESSAGE_PATTERNS = [
-  /android-fastboot version/i,
+  /fastboot engine version/i,
   /application starting/i,
   /build (version|timestamp)/i,
   /browser capability|user agent|secure context|WebUSB available|OPFS available|IndexedDB available|Wake Lock available|storage estimate|storage quota|hardwareConcurrency|deviceMemory/i,
@@ -40,13 +40,33 @@ const NOISY_MESSAGE_PATTERNS = [
 ];
 const ESSENTIAL_MESSAGE_PATTERNS = [
   /^Pixel connected$/,
+  /^Device verified$/,
+  /^Download started$/,
+  /^Download (25|50|75)%$/,
+  /^Download complete$/,
+  /^Verifying image$/,
+  /^(50|100)%$/,
   /^Image verified$/,
   /^Installation started$/,
+  /^Unpacking bootloader$/,
+  /^Bootloader (25|50|75|100)%$/,
   /^Preparing .+/,
   /^Flashing .+ (0|25|50|75|100)%$/,
+  /^radio start$/,
+  /^radio (0|25|50|75|100)%$/,
+  /^radio complete$/,
+  /^Lock requested$/,
+  /^Waiting for confirmation$/,
+  /^Bootloader locked$/,
+  /^Rebooting$/,
+  /^Complete$/,
   /^Pixel restarted$/,
-  /^Waiting for reconnect$/,
-  /^Reconnect Device selected$/,
+  /^Waiting for manual reconnect$/,
+  /^Reconnect Pixel clicked$/,
+  /^requested after radio$/,
+  /^waiting for manual click$/,
+  /^connect\(\) start$/,
+  /^connect\(\) success$/,
   /^Pixel reconnected$/,
   /^Installation resumed$/,
   /^Verified Boot key$/,
@@ -109,6 +129,7 @@ let activeCreatedAt: string | null = null;
 let ramEntries: LogEntry[] = [];
 let totalEntryCount = 0;
 let browserCapabilities: BrowserCapabilities | null = null;
+let activeSessionPersistent = true;
 const memorySessions = new Map<string, StoredLogSession>();
 const recentMessages = new Map<string, number>();
 
@@ -170,6 +191,7 @@ const randomPart = (): string => {
 };
 
 export const createInstallationSessionId = (date = new Date()): string => `worm-${datePart(date)}-${timePart(date)}-${randomPart()}`;
+export const createTestInstallationSessionId = (date = new Date()): string => `test-${datePart(date)}-${timePart(date)}-${randomPart()}`;
 
 export const maskSerial = (serial: string | null | undefined): string => {
   if (!serial || serial === 'Unavailable' || serial === 'Not connected') {
@@ -220,8 +242,12 @@ const isNoisyEntry = (level: LogLevel, category: LogCategory, message: string): 
   return NOISY_MESSAGE_PATTERNS.some((pattern) => pattern.test(message));
 };
 
-const isDuplicateEntry = (category: LogCategory, message: string, nowMs = Date.now()): boolean => {
-  const key = `${category}\n${message}`;
+const isDuplicateEntry = (category: LogCategory, message: string, details?: unknown, nowMs = Date.now()): boolean => {
+  const reconnectSequence =
+    category === 'RECONNECT' && details && typeof details === 'object' && 'reconnectSequence' in details
+      ? String((details as { reconnectSequence?: unknown }).reconnectSequence ?? '')
+      : '';
+  const key = `${category}\n${message}\n${reconnectSequence}`;
   const lastSeen = recentMessages.get(key);
   recentMessages.set(key, nowMs);
   for (const [entryKey, timestamp] of recentMessages) {
@@ -259,6 +285,9 @@ const retainFiveSessions = async (): Promise<void> => {
 };
 
 const persistEntry = async (entry: LogEntry): Promise<void> => {
+  if (!activeSessionPersistent) {
+    return;
+  }
   if (typeof indexedDB === 'undefined') {
     const existing = memorySessions.get(entry.sessionId);
     const createdAt = existing?.createdAt ?? activeCreatedAt ?? entry.timestamp;
@@ -297,7 +326,7 @@ export const createLogEntry = (
 ): LogEntry | null => {
   const normalizedLevel = normalizeLevel(level);
   const normalizedCategory = normalizeCategory((level.toUpperCase() as LogLevel), category);
-  if (isNoisyEntry(normalizedLevel, normalizedCategory, message) || isDuplicateEntry(normalizedCategory, message)) {
+  if (isNoisyEntry(normalizedLevel, normalizedCategory, message) || isDuplicateEntry(normalizedCategory, message, details)) {
     return null;
   }
   const entry: LogEntry = {
@@ -324,6 +353,26 @@ export const getSessionInfo = (): { sessionId: string; createdAt: string | null;
 export const getRamLogEntries = (): LogEntry[] => ramEntries;
 
 export const getLogCount = (): number => totalEntryCount;
+
+export const beginRamOnlyLogSession = (sessionId: string): void => {
+  activeSessionId = sessionId;
+  activeCreatedAt = new Date().toISOString();
+  activeSessionPersistent = false;
+  ramEntries = [];
+  totalEntryCount = 0;
+  nextLogId = 1;
+  recentMessages.clear();
+};
+
+export const restorePersistentLogSession = (): void => {
+  activeSessionId = null;
+  activeCreatedAt = null;
+  activeSessionPersistent = true;
+  ramEntries = [];
+  totalEntryCount = 0;
+  nextLogId = 1;
+  recentMessages.clear();
+};
 
 export const restoreCurrentLogSession = async (): Promise<LogEntry[]> => {
   const sessionId = getSessionId();
@@ -472,6 +521,7 @@ export const __resetLoggerForTests = (): void => {
   ramEntries = [];
   totalEntryCount = 0;
   browserCapabilities = null;
+  activeSessionPersistent = true;
   memorySessions.clear();
   recentMessages.clear();
   if (typeof localStorage !== 'undefined') {
@@ -485,5 +535,6 @@ export const __startLoggerSessionForTests = (sessionId: string): void => {
   ramEntries = [];
   totalEntryCount = 0;
   nextLogId = 1;
+  activeSessionPersistent = true;
   recentMessages.clear();
 };

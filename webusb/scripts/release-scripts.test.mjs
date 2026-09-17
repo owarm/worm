@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -140,5 +140,21 @@ describe('release scripts', () => {
       { filename: 'bootloader-frankel.img', compressedSize: 10, uncompressedSize: 100, method: 8, important: true },
       { filename: 'image-frankel.zip', compressedSize: 20, uncompressedSize: 200, method: 0, important: true }
     ]);
+  });
+
+  it('keeps nginx production auth on email OTP auth_request', async () => {
+    const repoRoot = path.resolve(import.meta.dirname, '..');
+    const nginxConfig = await readFile(path.join(repoRoot, 'nginx', 'worm-webusb.conf'), 'utf8');
+    const deployScript = await readFile(path.join(repoRoot, 'scripts', 'deploy-production.sh'), 'utf8');
+
+    for (const config of [nginxConfig, deployScript]) {
+      expect(config).toContain('auth_request /auth-verify;');
+      expect(config).toContain('proxy_pass http://127.0.0.1:8787/auth/check;');
+      expect(config).toContain('location ^~ /auth/');
+      expect(config).toContain('location /fastboot/');
+      expect(config).toContain('Accept-Ranges "bytes"');
+      expect(config).not.toContain('auth_basic');
+      expect(config).not.toContain('.worm-webusb.htpasswd');
+    }
   });
 });

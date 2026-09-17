@@ -1,0 +1,13 @@
+[
+  {
+    "device": "Pixel 10",
+    "codename": "frankel",
+    "buildId": "2026091500",
+    "filename": "frankel-ota_update-2026091500.zip",
+    "size": 1671370443,
+    "sizeHuman": "1.56 GB",
+    "sha256": "ac060ef7c50701b1b45bd1e3e9e26375bed63a666afee6717e610bbf897ca53c",
+    "date": "2026-09-15",
+    "url": "/files/ota-frankel-2026091500-6a7663a8a846-frankel-ota_update-2026091500.zip"
+  }
+]

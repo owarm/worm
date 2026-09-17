@@ -1,0 +1,32 @@
+[Unit]
+Description=Worm WebUSB Email OTP Auth Server
+After=network.target
+
+[Service]
+Type=simple
+User=worm-webusb-auth
+Group=worm-webusb-auth
+WorkingDirectory=/opt/worm/webusb
+EnvironmentFile=/etc/worm-webusb/auth.env
+ExecStart=/usr/bin/node /opt/worm/webusb/auth/server.mjs
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+ReadOnlyPaths=/opt/worm/webusb /usr/sbin/sendmail
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

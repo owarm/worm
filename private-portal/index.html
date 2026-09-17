@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Worm · Private Update Portal</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="mac-window portal-window" aria-labelledby="portal-title">
+        <div class="titlebar">
+          <div class="traffic-lights" aria-hidden="true">
+            <span class="traffic-light traffic-close"></span>
+            <span class="traffic-light traffic-minimize"></span>
+            <span class="traffic-light traffic-zoom"></span>
+          </div>
+          <div class="titlebar-center">
+            <strong>WORM</strong>
+            <span>Private Update Portal</span>
+          </div>
+          <span class="connection-dot is-connected" aria-hidden="true"></span>
+        </div>
+
+        <div class="window-body portal-layout">
+          <nav class="sidebar" aria-label="Portal">
+            <a href="/" data-nav="overview">Overview</a>
+            <a href="/timeline" data-nav="timeline">Timeline</a>
+            <a href="/apps/" data-nav="apps">Apps</a>
+            <a href="/release/" data-nav="builds">Builds</a>
+            <a href="/release/" data-nav="releases">Releases</a>
+            <a href="https://logs.coffee.pm/" data-nav="logs">Logs</a>
+          </nav>
+
+          <section class="portal-main" data-view="overview">
+            <section class="hero" aria-labelledby="portal-title">
+              <p class="kicker">VPN connection required</p>
+              <h1 id="portal-title">Worm</h1>
+              <p class="subtitle">Private Update Portal</p>
+            </section>
+
+            <section class="cards" aria-label="Update package areas">
+              <a class="portal-card release" href="/release/">
+                <span class="card-label">RELEASE</span>
+                <span class="card-title">Factory installation images</span>
+                <span class="card-count">Available: <strong data-count="release">0</strong></span>
+                <span class="buttonish">Open Releases</span>
+              </a>
+
+              <a class="portal-card ota" href="/ota/">
+                <span class="card-label">OTA</span>
+                <span class="card-title">System updates</span>
+                <span class="card-count">Available: <strong data-count="ota">0</strong></span>
+                <span class="buttonish">Open OTA</span>
+              </a>
+            </section>
+
+            <section class="recent-panel" aria-labelledby="recent-title">
+              <div>
+                <p class="kicker">Recent activity</p>
+                <h2 id="recent-title">Latest project events</h2>
+              </div>
+              <div class="recent-list" data-recent-list></div>
+              <a class="buttonish" href="/timeline">View Timeline</a>
+            </section>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <footer>VPN connection required</footer>
+  </body>
+</html>

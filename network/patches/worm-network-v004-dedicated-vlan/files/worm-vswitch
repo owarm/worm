@@ -1,0 +1,5 @@
+auto enp9s0.4000
+iface enp9s0.4000 inet static
+    address 10.20.1.2/24
+    mtu 1400
+    vlan-raw-device enp9s0

@@ -1,5 +1,15 @@
 import { DEVICE_TARGET } from './config';
-import { clearCurrentLogSession, createLogEntry, getLogCount, getRamLogEntries, getSessionInfo, restoreCurrentLogSession } from './logger';
+import {
+  beginRamOnlyLogSession,
+  clearCurrentLogSession,
+  createLogEntry,
+  createTestInstallationSessionId,
+  getLogCount,
+  getRamLogEntries,
+  getSessionInfo,
+  restoreCurrentLogSession,
+  restorePersistentLogSession
+} from './logger';
 import type {
   AppState,
   DeviceInfo,
@@ -12,7 +22,8 @@ import type {
   PersistedInstallerMetadata,
   ReleaseManifest,
   SafeStage,
-  StateListener
+  StateListener,
+  VerifyProgress
 } from './types';
 import { InstallerStateError } from './types';
 
@@ -24,6 +35,7 @@ const safeStages = new Set<SafeStage>([
   'DEVICE_VERIFIED',
   'UNLOCK_REQUIRED',
   'UNLOCKED',
+  'DOWNLOAD_PAUSED',
   'DOWNLOADED',
   'VERIFIED',
   'FLASH_COMPLETE',
@@ -41,12 +53,14 @@ const legalTransitions: Record<InstallerState, InstallerState[]> = {
   UNLOCKING: ['WAITING_USER_UNLOCK', 'UNLOCKED', 'RECONNECTING', 'ERROR'],
   WAITING_USER_UNLOCK: ['RECONNECTING', 'UNLOCKED', 'ERROR'],
   UNLOCKED: ['DOWNLOADING', 'DOWNLOADED', 'VERIFYING', 'VERIFIED', 'ERROR'],
-  DOWNLOADING: ['DOWNLOADED', 'ERROR'],
+  DOWNLOADING: ['DOWNLOAD_PAUSED', 'DOWNLOADED', 'ERROR'],
+  DOWNLOAD_PAUSED: ['CONNECTING', 'DOWNLOADING', 'DOWNLOADED', 'ERROR'],
   DOWNLOADED: ['CONNECTING', 'VERIFYING', 'DOWNLOADING', 'VERIFIED', 'ERROR'],
   VERIFYING: ['VERIFIED', 'DOWNLOADING', 'ERROR'],
   VERIFIED: ['CONNECTING', 'FLASHING', 'ERROR'],
   FLASHING: ['WAITING_FOR_RECONNECT', 'RECONNECTING', 'FLASH_COMPLETE', 'ERROR'],
-  WAITING_FOR_RECONNECT: ['FLASHING', 'FLASH_COMPLETE', 'ERROR'],
+  WAITING_FOR_RECONNECT: ['WAITING_FOR_FLASH_RESUME', 'FLASH_COMPLETE', 'ERROR'],
+  WAITING_FOR_FLASH_RESUME: ['FLASHING', 'FLASH_COMPLETE', 'ERROR'],
   RECONNECTING: ['WAITING_MANUAL_RECONNECT', 'CONNECTED', 'DEVICE_VERIFIED', 'UNLOCKED', 'FLASHING', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKED', 'ERROR'],
   WAITING_MANUAL_RECONNECT: ['FLASHING', 'ERROR'],
   FLASH_COMPLETE: ['RECONNECTING', 'LOCK_READY', 'ERROR'],
@@ -66,6 +80,18 @@ const emptyDeviceInfo: DeviceInfo = {
   bootloader: 'Unknown'
 };
 
+const initialVerifyProgress: VerifyProgress = {
+  state: 'idle',
+  verifiedBytes: 0,
+  totalBytes: 0,
+  percent: 0,
+  expectedSha256: null,
+  actualSha256: null,
+  metadataVerified: false,
+  fileAvailable: false,
+  fileSize: null
+};
+
 const readPersistedMetadata = (): PersistedInstallerMetadata => {
   if (typeof localStorage === 'undefined') {
     return {};
@@ -81,7 +107,9 @@ const readPersistedMetadata = (): PersistedInstallerMetadata => {
       releaseId: typeof parsed.releaseId === 'string' ? parsed.releaseId : undefined,
       expectedProduct: typeof parsed.expectedProduct === 'string' ? parsed.expectedProduct : undefined,
       expectedSerial: typeof parsed.expectedSerial === 'string' ? parsed.expectedSerial : undefined,
-      lastSafeStage: parsed.lastSafeStage && safeStages.has(parsed.lastSafeStage) ? parsed.lastSafeStage : undefined
+      lastSafeStage: parsed.lastSafeStage && safeStages.has(parsed.lastSafeStage) ? parsed.lastSafeStage : undefined,
+      installerStage: parsed.installerStage && parsed.installerStage in legalTransitions ? parsed.installerStage : undefined,
+      flashStepIndex: typeof parsed.flashStepIndex === 'number' && Number.isFinite(parsed.flashStepIndex) ? parsed.flashStepIndex : undefined
     };
   } catch {
     return {};
@@ -97,7 +125,9 @@ const writePersistedMetadata = (metadata: PersistedInstallerMetadata): void => {
     releaseId: metadata.releaseId,
     expectedProduct: metadata.expectedProduct,
     expectedSerial: metadata.expectedSerial,
-    lastSafeStage: metadata.lastSafeStage
+    lastSafeStage: metadata.lastSafeStage,
+    installerStage: metadata.installerStage,
+    flashStepIndex: metadata.flashStepIndex
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
 };
@@ -106,13 +136,15 @@ const persisted = readPersistedMetadata();
 
 const initialState: AppState = {
   sessionId: getSessionInfo().sessionId,
+  testMode: false,
+  testReconnectSequence: 0,
   installerState: 'IDLE',
   deviceInfo: emptyDeviceInfo,
   release: null,
   download: null,
   flash: null,
   progress: 0,
-  statusMessage: 'Worm OS installer ready.',
+  statusMessage: 'Web installer ready.',
   errorMessage: null,
   logs: [],
   logCount: getLogCount(),
@@ -124,7 +156,8 @@ const initialState: AppState = {
   expectedSerial: persisted.expectedSerial ?? null,
   releaseComplete: false,
   releaseVerified: false,
-  releaseFileAvailable: false
+  releaseFileAvailable: false,
+  verify: initialVerifyProgress
 };
 
 let currentState = initialState;
@@ -135,7 +168,16 @@ export const getState = (): AppState => currentState;
 
 export const getPersistedMetadata = (): PersistedInstallerMetadata => persistedMetadata;
 
+export const isTestMode = (): boolean => currentState.testMode;
+
 export const updatePersistedMetadata = (metadata: Partial<PersistedInstallerMetadata>): void => {
+  if (currentState.testMode) {
+    if ('expectedSerial' in metadata) {
+      currentState = { ...currentState, expectedSerial: metadata.expectedSerial ?? null };
+      publish();
+    }
+    return;
+  }
   persistedMetadata = { ...persistedMetadata, ...metadata };
   writePersistedMetadata(persistedMetadata);
   if ('expectedSerial' in metadata) {
@@ -188,6 +230,7 @@ export const transitionInstallerState = (installerState: InstallerState, message
   if (safeStages.has(installerState as SafeStage)) {
     updatePersistedMetadata({ lastSafeStage: installerState as SafeStage });
   }
+  updatePersistedMetadata({ installerStage: installerState });
 
   publish();
 };
@@ -264,8 +307,18 @@ export const setCacheKey = (cacheKey: string | null): void => {
   publish();
 };
 
+export const setTestReconnectSequence = (testReconnectSequence: number): void => {
+  currentState = { ...currentState, testReconnectSequence };
+  publish();
+};
+
 export const setReleaseStorageState = (storageState: Partial<Pick<AppState, 'releaseComplete' | 'releaseVerified' | 'releaseFileAvailable'>>): void => {
   currentState = { ...currentState, ...storageState };
+  publish();
+};
+
+export const setVerifyProgress = (verify: Partial<VerifyProgress>): void => {
+  currentState = { ...currentState, verify: { ...currentState.verify, ...verify } };
   publish();
 };
 
@@ -315,6 +368,36 @@ export const resetSession = (): void => {
   publish();
 };
 
+export const startTestSession = (): string => {
+  const sessionId = createTestInstallationSessionId();
+  beginRamOnlyLogSession(sessionId);
+  currentState = {
+    ...initialState,
+    sessionId,
+    testMode: true,
+    testReconnectSequence: 0,
+    statusMessage: 'Test installer ready.',
+    logs: [],
+    logCount: 0,
+    expectedSerial: null
+  };
+  publish();
+  return sessionId;
+};
+
+export const exitTestSession = (): void => {
+  restorePersistentLogSession();
+  currentState = {
+    ...initialState,
+    sessionId: getSessionInfo().sessionId,
+    logs: [],
+    logCount: 0,
+    statusMessage: 'Web installer ready.',
+    expectedSerial: persistedMetadata.expectedSerial ?? null
+  };
+  publish();
+};
+
 export const restoreLogsForCurrentSession = async (): Promise<void> => {
   const entries = await restoreCurrentLogSession();
   currentState = {
@@ -340,6 +423,8 @@ export const __resetStateForTests = (): void => {
   currentState = {
     ...initialState,
     sessionId: getSessionInfo().sessionId,
+    testMode: false,
+    testReconnectSequence: 0,
     logs: getRamLogEntries(),
     logCount: getLogCount()
   };

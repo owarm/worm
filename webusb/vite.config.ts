@@ -27,14 +27,6 @@ const copyFastbootZipWorkers = () => ({
 
 export default defineConfig({
   plugins: [copyFastbootZipWorkers()],
-  resolve: {
-    alias: [
-      {
-        find: /^android-fastboot$/,
-        replacement: fileURLToPath(new URL('./node_modules/android-fastboot/dist/fastboot.mjs', import.meta.url))
-      }
-    ]
-  },
   server: {
     host: '127.0.0.1',
     port: 5173

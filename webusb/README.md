@@ -78,7 +78,7 @@ Fastboot operations may reboot or disconnect the Pixel. The reconnect manager wa
 
 ## Bootloader unlock
 
-Bootloader unlock requires an explicit checkbox and click. The installer runs the real fastboot command equivalent to `flashing unlock` through `android-fastboot`.
+Bootloader unlock requires an explicit checkbox and click. The installer runs the real fastboot command equivalent to `flashing unlock` through the vendored GrapheneOS Fastboot engine.
 
 ## Data wipe warnings
 
@@ -86,7 +86,7 @@ Unlocking and locking the bootloader erase user data. The UI requires separate c
 
 ## Factory flashing
 
-The app downloads the release ZIP, verifies SHA-256, and passes the Blob to `android-fastboot` `flashFactoryZip(blob, wipe, onReconnect, onProgress)`. The factory ZIP is handled by the library, not by manifest-defined partition commands.
+The app downloads the release ZIP, verifies SHA-256, and passes the Blob to the vendored GrapheneOS Fastboot engine via `flashFactoryZip(blob, wipe, onReconnect, onProgress)`. The factory ZIP is handled by the engine, including the direct GrapheneOS install layout driven by `script.txt`.
 
 ## AVB / Verified Boot
 
@@ -110,20 +110,9 @@ The manifest SHA-256 must match the downloaded factory ZIP before flashing. Flas
 
 ## nginx deployment
 
-Use `nginx/worm-webusb.conf` as a production template. It redirects HTTP to HTTPS, serves `/var/www/worm-webusb`, enables WebUSB via `Permissions-Policy`, sets a strict CSP, and protects the entire HTTPS site with Nginx HTTP Basic Authentication. The authentication challenge is served before the browser receives `index.html`, JavaScript, CSS, `manifest.json`, release ZIPs, or WebUSB installer assets.
+Use `nginx/worm-webusb.conf` as a production template. It redirects HTTP to HTTPS, serves `/var/www/worm-webusb`, enables WebUSB via `Permissions-Policy`, sets a strict CSP, proxies `/auth/` to the local email OTP backend, and protects `index.html`, JavaScript, CSS, `manifest.json`, release ZIPs, and WebUSB worker assets with `auth_request /auth-verify`.
 
-The expected Basic Auth username is `worm`. The password must be created manually on the server and must not be hardcoded in this project. The Nginx template expects the password file at:
-
-```sh
-/etc/nginx/.worm-webusb.htpasswd
-```
-
-Install the password utility and create the server-side password file:
-
-```sh
-apt install apache2-utils
-htpasswd -c /etc/nginx/.worm-webusb.htpasswd worm
-```
+Configure `systemd/worm-webusb-auth.service` with an environment file at `/etc/worm-webusb/auth.env` containing `AUTHORIZED_EMAIL`, `MAIL_FROM`, and a high-entropy `SESSION_SECRET`. The auth server uses local `/usr/sbin/sendmail`; no SMTP credentials are required by this project.
 
 Then validate and reload Nginx:
 
@@ -132,7 +121,7 @@ nginx -t
 systemctl reload nginx
 ```
 
-Do not save the PIN or password in `package.json`, a published `.env`, JavaScript, HTML, git, or logs. The client-side installation-code gate has been removed because access is now protected by Nginx before the application loads. Production deployment serves only local static files from `dist/` and does not require external JavaScript, analytics, telemetry, HTTP configuration, or a CDN.
+Do not save OTPs, session secrets, email contents, private keys, or credentials in `package.json`, a published `.env`, JavaScript, HTML, git, or logs. Production deployment serves only local static files from `dist/` and does not require external JavaScript, analytics, telemetry, HTTP configuration, or a CDN.
 
 ## Production deployment
 

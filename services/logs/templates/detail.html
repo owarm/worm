@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  $refresh
+  <title>$title · Worm Logs</title>
+  <style>
+    :root { color-scheme: dark; --bg:#111310; --panel:#191d18; --line:#30372d; --text:#e6eadf; --muted:#a4ad9b; --accent:#9fc56b; --bad:#d97973; --run:#d2b55f; }
+    * { box-sizing:border-box; }
+    body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif; background:var(--bg); color:var(--text); }
+    header, main { width:min(1180px, calc(100% - 32px)); margin:0 auto; }
+    header { padding:28px 0 18px; }
+    a { color:var(--accent); text-decoration:none; }
+    h1 { margin:8px 0 4px; font-size:26px; letter-spacing:0; overflow-wrap:anywhere; }
+    .sub, dt { color:var(--muted); }
+    .status { color:var(--accent); } .status.failed { color:var(--bad); } .status.running { color:var(--run); }
+    section { border-top:1px solid var(--line); padding:18px 0; }
+    dl { display:grid; grid-template-columns:160px 1fr; gap:8px 14px; margin:0; }
+    dd { margin:0; overflow-wrap:anywhere; }
+    .cmd, pre { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .cmd { padding:12px; border:1px solid var(--line); border-radius:8px; background:var(--panel); overflow:auto; }
+    pre { margin:0; padding:14px; min-height:360px; white-space:pre-wrap; overflow-wrap:anywhere; border:1px solid var(--line); border-radius:8px; background:#090b09; color:#dfe8d7; }
+    .warn { color:var(--bad); }
+    @media (max-width:720px) { dl { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← runs</a>
+    <h1>$title</h1>
+    <div class="sub">Run #$id · <span class="status $status">$status</span> · exit $exit_code</div>
+  </header>
+  <main>
+    <section>
+      <dl>
+        <dt>cwd</dt><dd>$cwd</dd>
+        <dt>started</dt><dd>$start</dd>
+        <dt>ended</dt><dd>$end</dd>
+        <dt>duration</dt><dd>$duration</dd>
+      </dl>
+    </section>
+    <section><div class="cmd">$command</div></section>
+    <section><dl>$metadata</dl></section>
+    <section>
+      $log_notice
+      <pre>$log</pre>
+    </section>
+  </main>
+</body>
+</html>

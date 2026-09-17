@@ -1,0 +1,133 @@
+PATCH=vswitch-opnsense-repair-v007
+TIMESTAMP=2026-09-15 17:52:55 CEST +0200
+TIMEZONE=Europe/Rome
+
+=== VSWITCH OPNsense REPAIR V007 ===
+
+ROBOT_VLAN:
+PASS
+
+CLOUD_NETWORK:
+PASS
+
+OPNSENSE_ATTACHED:
+PASS
+
+OPNSENSE_PRIVATE_IP:
+10.90.10.1
+
+OPNSENSE_PRIVATE_MAC:
+86:00:00:2d:d1:bf
+
+VSWITCH_SUBNET:
+10.90.20.0/24
+
+DEDICATED_PRIVATE:
+10.90.20.2/24
+
+ROUTING:
+PASS
+
+ICMP:
+FAIL
+
+PUBLIC_NETWORK:
+UNCHANGED
+
+PRIVATE_NETWORK:
+FAIL
+
+FINAL=REVIEW_REQUIRED
+
+DETAILS:
+- Public dedicated interface enp9s0 was not modified.
+- Public dedicated address remains 162.55.6.173/26.
+- Default route remains: default via 162.55.6.129 dev enp9s0 onlink.
+- VPS public IPv4 was not modified: 2.28.34.27.
+- Caddy/nginx/DNS/SSH were not modified.
+
+BACKUP_DIR=/opt/worm/network/backup/v007-20260915-175255
+
+BACKUPS:
+- cloud-server-before.json
+- cloud-network-before.json
+- robot-vswitch-before.json
+- interfaces.bak
+- worm-vswitch.bak
+- ip-link-enp9s0.before.txt
+- ip-link-enp9s0.4000.before.txt
+- ip-addr-enp9s0.4000.before.txt
+- ip-route.before.txt
+- cloud-attach-action.json
+- cloud-attach-action.poll.json
+- cloud-server-after-attach.json
+- cloud-network-after-attach.json
+- cloud-poweron-action.json
+- cloud-poweron-action.poll.json
+- cloud-server-after-poweron.json
+- cloud-server-final.json
+- cloud-network-final.json
+- ip-addr-enp9s0.4000.final.txt
+- ip-route.final.txt
+- ip-neigh-enp9s0.4000.final.txt
+
+CHANGES_APPLIED:
+1. Attached Hetzner Cloud server worm-opnsense id=164649753 to Cloud Network worm-private id=12619353.
+2. Hetzner assigned Cloud private IP 10.90.10.1 and private MAC 86:00:00:2d:d1:bf.
+3. Powered on existing worm-opnsense because live metadata showed status=off.
+4. Changed only dedicated private VLAN enp9s0.4000 from 10.20.1.2/24 to 10.90.20.2/24.
+5. Added private route only: 10.90.0.0/16 via 10.90.20.1 dev enp9s0.4000 onlink.
+6. Updated persistent ifupdown config /etc/network/interfaces.d/worm-vswitch.
+
+HETZNER_CLOUD_FINAL:
+- server_name=worm-opnsense
+- server_id=164649753
+- server_status=running
+- private_net_count=1
+- private_ip=10.90.10.1
+- private_mac=86:00:00:2d:d1:bf
+- network=worm-private
+- network_id=12619353
+- network_cidr=10.90.0.0/16
+- network_servers=[164649753]
+- cloud_subnet=10.90.10.0/24
+- vswitch_subnet=10.90.20.0/24
+- vswitch_id=85469
+- vlan=4000
+
+DEDICATED_FINAL:
+- enp9s0=UP 162.55.6.173/26 2a01:4f8:252:7ee::2/64
+- enp9s0.4000=UP 10.90.20.2/24
+- enp9s0.4000_mtu=1400
+- route_to_opnsense_private=10.90.10.1 via 10.90.20.1 dev enp9s0.4000 src 10.90.20.2
+- default_route=default via 162.55.6.129 dev enp9s0 onlink
+
+TESTS:
+- ping 10.90.20.1: no ICMP reply, but ARP succeeded.
+- neighbor 10.90.20.1: f2:0b:a4:d1:20:01 reachable/delay on enp9s0.4000.
+- ip route get 10.90.10.1: via 10.90.20.1 dev enp9s0.4000 src 10.90.20.2.
+- ping 10.90.10.1: 3 transmitted, 0 received.
+- tcp/22 to 10.90.10.1: closed_or_filtered.
+- tcp/443 to 10.90.10.1: closed_or_filtered.
+
+WHY_FINAL_IS_NOT_READY:
+- Hetzner Cloud attachment and dedicated routing are now repaired.
+- ICMP/TCP to 10.90.10.1 still fail.
+- OPNsense API/SSH credentials are not configured locally, so the in-guest private NIC, ifconfig, netstat -rn, firewall aliases, and firewall rules could not be audited or configured.
+- The remaining issue is inside worm-opnsense guest configuration or firewall/private NIC state, not the dedicated public network.
+
+NEXT_ACTION:
+1. Access OPNsense via console/API/SSH without changing WAN public IP.
+2. Run ifconfig and netstat -rn.
+3. Identify the actual private NIC; do not assume vtnet1/vtnet2.
+4. Ensure the NIC has 10.90.10.1 in the Hetzner Cloud private network.
+5. Ensure route to 10.90.20.0/24 exists through the Hetzner private network path.
+6. Create aliases:
+   WORM_VSWITCH_NET=10.90.20.0/24
+   WORM_CLOUD_NET=10.90.10.0/24
+7. Permit WORM_VSWITCH_NET -> OPNsense and WORM_VSWITCH_NET -> Internet on the private interface.
+8. Permit ICMP temporarily for verification.
+9. Retest ping from 10.90.20.2 to 10.90.10.1.
+
+SECRETS:
+- No token, password, API secret, or private key values intentionally printed in this result.

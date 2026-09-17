@@ -12,7 +12,7 @@ type StorageManagerWithOpfs = StorageManager & {
   getDirectory?: () => Promise<FileSystemDirectoryHandle>;
 };
 
-const persistentStorageMessage = 'Not enough persistent browser storage for the Worm OS release.';
+const persistentStorageMessage = 'Not enough persistent browser storage for the installation image.';
 
 const requestToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {

@@ -1,0 +1,82 @@
+{
+  "generatedAt": "2026-09-15T12:34:28.589Z",
+  "roots": [
+    "/opt/worm/releases",
+    "/opt/worm/grapheneos/releases",
+    "/opt/worm/artifacts",
+    "/opt/worm/webusb/public/releases",
+    "/opt/worm/webusb/dist/releases"
+  ],
+  "files": [
+    {
+      "device": "Pixel 10",
+      "codename": "frankel",
+      "buildId": "2026091500",
+      "filename": "frankel-ota_update-2026091500.zip",
+      "size": 1671370443,
+      "sizeHuman": "1.56 GB",
+      "sha256": "ac060ef7c50701b1b45bd1e3e9e26375bed63a666afee6717e610bbf897ca53c",
+      "date": "2026-09-15",
+      "url": "/files/ota-frankel-2026091500-6a7663a8a846-frankel-ota_update-2026091500.zip",
+      "kind": "ota",
+      "sourcePath": "/opt/worm/grapheneos/releases/2026091500/release-frankel-2026091500/frankel-ota_update-2026091500.zip",
+      "linkName": "ota-frankel-2026091500-6a7663a8a846-frankel-ota_update-2026091500.zip"
+    },
+    {
+      "device": "Pixel 10",
+      "codename": "frankel",
+      "buildId": "2026091500",
+      "filename": "frankel-factory-2026091500.zip",
+      "size": 2254591019,
+      "sizeHuman": "2.10 GB",
+      "sha256": "78dc6d9ed0c1182dd0493d7abcf6d7c0f3b31881da8354f2bae741b84f2c7659",
+      "date": "2026-09-15",
+      "url": "/files/release-frankel-2026091500-a66ab10b486a-frankel-factory-2026091500.zip",
+      "kind": "release",
+      "sourcePath": "/opt/worm/grapheneos/releases/2026091500/release-frankel-2026091500/frankel-factory-2026091500.zip",
+      "linkName": "release-frankel-2026091500-a66ab10b486a-frankel-factory-2026091500.zip"
+    },
+    {
+      "device": "Pixel 10",
+      "codename": "frankel",
+      "buildId": "2026091500",
+      "filename": "frankel-img-2026091500.zip",
+      "size": 2104034895,
+      "sizeHuman": "1.96 GB",
+      "sha256": "705e2877e30892d68512e776a890f063f943c104508f3e72d3da1719aa00274a",
+      "date": "2026-09-15",
+      "url": "/files/release-frankel-2026091500-269ea94651ad-frankel-img-2026091500.zip",
+      "kind": "release",
+      "sourcePath": "/opt/worm/grapheneos/releases/2026091500/release-frankel-2026091500/frankel-img-2026091500.zip",
+      "linkName": "release-frankel-2026091500-269ea94651ad-frankel-img-2026091500.zip"
+    },
+    {
+      "device": "Pixel 10",
+      "codename": "frankel",
+      "buildId": "2026091500",
+      "filename": "frankel-install-2026091500.zip",
+      "size": 2100249342,
+      "sizeHuman": "1.96 GB",
+      "sha256": "b28ec82ac7d28007227b3699b28b89b17adb9ad94a0989af7c7450dccc8f649c",
+      "date": "2026-09-15",
+      "url": "/files/release-frankel-2026091500-1dfa4e312dba-frankel-install-2026091500.zip",
+      "kind": "release",
+      "sourcePath": "/opt/worm/grapheneos/releases/2026091500/release-frankel-2026091500/frankel-install-2026091500.zip",
+      "linkName": "release-frankel-2026091500-1dfa4e312dba-frankel-install-2026091500.zip"
+    },
+    {
+      "device": "Pixel 10",
+      "codename": "frankel",
+      "buildId": "2026091100",
+      "filename": "frankel-install-2026091100.zip",
+      "size": 2093880852,
+      "sizeHuman": "1.95 GB",
+      "sha256": "eda7af95eaf56cd9e9697970a56b6c08a90c75f2308f90a5d5019137ad0b2832",
+      "date": "2026-09-12",
+      "url": "/files/release-frankel-2026091100-bf8749f4588b-frankel-install-2026091100.zip",
+      "kind": "release",
+      "sourcePath": "/opt/worm/webusb/public/releases/frankel-install-2026091100.zip",
+      "linkName": "release-frankel-2026091100-bf8749f4588b-frankel-install-2026091100.zip"
+    }
+  ]
+}

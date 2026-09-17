@@ -1,0 +1,6 @@
+config/network.env
+generated/*
+backup/*
+logs/*
+state/*
+

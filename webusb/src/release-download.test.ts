@@ -194,6 +194,25 @@ describe('resumable release download', () => {
     expect(matching.verified).toBe(true);
     expect(changed.verified).toBe(false);
     expect(changed.complete).toBe(false);
+    expect(changed.file).toBeNull();
+  });
+
+  it('restarts from byte 0 instead of resuming a file with stale manifest metadata', async () => {
+    const staleMetadata = metadataFromManifest({ ...manifest, release: { ...manifest.release, sha256: 'b'.repeat(64) } }, 4, false, false, { etag: '"old"' });
+    const store = new MemoryReleaseStore({ data: 'stale', metadata: staleMetadata });
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get('range')).toBeNull();
+      expect(headers.get('if-range')).toBeNull();
+      return response('0123456789');
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const file = await downloadRelease(manifest, store, new AbortController().signal, () => undefined);
+
+    expect(await file.text()).toBe('0123456789');
+    expect(store.writes).toContain('truncate:0');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('hashes Blob streams without reading the whole file as an ArrayBuffer', async () => {

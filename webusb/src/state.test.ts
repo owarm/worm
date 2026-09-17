@@ -35,6 +35,15 @@ describe('installer state', () => {
     expect(getState().installerState).toBe('FLASHING');
   });
 
+  it('treats DOWNLOAD_PAUSED as a recoverable download state', () => {
+    transitionInstallerState('DOWNLOADING');
+    transitionInstallerState('DOWNLOAD_PAUSED');
+
+    expect(getState().installerState).toBe('DOWNLOAD_PAUSED');
+    expect(canTransition('DOWNLOAD_PAUSED', 'DOWNLOADING')).toBe(true);
+    expect(canTransition('DOWNLOAD_PAUSED', 'DOWNLOADED')).toBe(true);
+  });
+
   it('rejects illegal state transition', () => {
     expect(() => transitionInstallerState('FLASHING')).toThrow(InstallerStateError);
     expect(getState().installerState).toBe('ERROR');

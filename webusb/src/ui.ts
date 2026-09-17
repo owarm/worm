@@ -3,6 +3,8 @@ import { createDiagnosticJson, formatTextLog, getStoredLogSession } from './logg
 import type { AppState, InstallerState, LogEntry } from './types';
 
 export type UiActions = {
+  startTest: () => void;
+  exitTest: () => void;
   connect: () => void;
   unlock: () => void;
   download: () => void;
@@ -18,24 +20,31 @@ export type UiActions = {
   exportJson: () => void;
   acknowledgeUnlock: (checked: boolean) => void;
   acknowledgeLock: (checked: boolean) => void;
+  signOut: () => void;
 };
 
-type ButtonAction = Exclude<keyof UiActions, 'acknowledgeUnlock' | 'acknowledgeLock'>;
+type ButtonAction = Exclude<keyof UiActions, 'startTest' | 'exitTest' | 'acknowledgeUnlock' | 'acknowledgeLock' | 'signOut'>;
 type VisualStepStatus = 'pending' | 'active' | 'complete' | 'warning' | 'error';
 type ConnectionTone = 'connected' | 'reconnecting' | 'disconnected' | 'error';
-type ModalKind = 'unlock' | 'lock' | null;
+type ModalKind = 'unlock' | 'lock' | 'test' | null;
+type UiOptions = {
+  authenticated?: boolean;
+};
 
 const targetName = DEVICE_TARGET.name.replace('Google ', '');
+const genericDeviceName = 'Device';
+
+const displayDeviceName = (state: AppState): string => (isDeviceConnected(state) ? state.deviceInfo.device.replace('Google ', '') : genericDeviceName);
 
 const buttonLabels: Record<ButtonAction, string> = {
   connect: 'Connect Pixel',
   unlock: 'Unlock Bootloader',
-  download: 'Download Worm OS',
+  download: 'Download Image',
   verify: 'Verify Image',
-  flash: 'Install Worm OS',
+  flash: 'Install',
   lock: 'Lock Bootloader',
   reboot: 'Reboot Pixel',
-  reconnect: 'Reconnect Device',
+  reconnect: 'Reconnect Pixel',
   clear: 'Clear Release',
   downloadLog: 'Download Installation Log',
   copyLog: 'Copy Installation Log',
@@ -48,6 +57,7 @@ const destructiveBusyStates: InstallerState[] = [
   'WAITING_USER_UNLOCK',
   'FLASHING',
   'WAITING_FOR_RECONNECT',
+  'WAITING_FOR_FLASH_RESUME',
   'RECONNECTING',
   'WAITING_MANUAL_RECONNECT',
   'LOCKING',
@@ -55,17 +65,25 @@ const destructiveBusyStates: InstallerState[] = [
   'REBOOTING'
 ];
 
-const reconnectStates: InstallerState[] = ['WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'];
+const reconnectStates: InstallerState[] = ['WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'];
 
 const busyStates: InstallerState[] = ['CONNECTING', 'DOWNLOADING', 'VERIFYING', ...destructiveBusyStates];
 
 const flowSteps: Array<{ label: string; completeStates: InstallerState[] }> = [
-  { label: 'Connect Pixel', completeStates: ['CONNECTED', 'DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'UNLOCKED', 'DOWNLOADING', 'DOWNLOADED', 'VERIFYING', 'VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
-  { label: 'Prepare Bootloader', completeStates: ['UNLOCKED', 'DOWNLOADING', 'DOWNLOADED', 'VERIFYING', 'VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
-  { label: 'Download Worm OS', completeStates: ['DOWNLOADED', 'VERIFYING', 'VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
-  { label: 'Verify Image', completeStates: ['VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
-  { label: 'Install Worm OS', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
-  { label: 'Lock Bootloader', completeStates: ['LOCKED', 'REBOOTING', 'COMPLETE'] }
+  { label: 'Download release', completeStates: ['DOWNLOADED', 'VERIFYING', 'VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Verify release', completeStates: ['VERIFIED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Connect device', completeStates: ['CONNECTED', 'DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'UNLOCKED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Verify Pixel 10', completeStates: ['DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'UNLOCKED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Unlock bootloader', completeStates: ['UNLOCKED', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Flash bootloader', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Reconnect', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Flash radio', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Reconnect', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Install AVB key', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Flash Worm OS', completeStates: ['FLASH_COMPLETE', 'LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Verify installation', completeStates: ['LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Lock bootloader', completeStates: ['LOCKED', 'REBOOTING', 'COMPLETE'] },
+  { label: 'Reboot', completeStates: ['COMPLETE'] }
 ];
 
 const esc = (value: unknown): string =>
@@ -101,11 +119,30 @@ const formatFlashItem = (item: string | null): string => {
   return item;
 };
 
+const formatFactoryDebugStage = (state: AppState): string => {
+  const operation = state.flash?.operation ?? null;
+  const item = state.flash?.item ?? null;
+  if (state.installerState === 'WAITING_FOR_RECONNECT' && item === 'radio') return 'Restarting bootloader';
+  if (operation === 'flash' && item === 'radio') return 'radio';
+  if (operation === 'reboot' && item === 'bootloader') return 'reboot-bootloader after radio';
+  if (operation === 'flash' && item === 'avb_custom_key') return 'Installing Verified Boot key';
+  if (operation === 'oem' && item === 'uart disable') return 'uart disable';
+  if ((operation === 'erase' || operation === 'wipe') && (item === 'dpm_a' || item === 'dpm_b')) return 'dpm erase';
+  if ((operation === 'update' || operation === 'check') && item === 'android-info') return 'android-info check';
+  if (operation === 'snapshot-update' && item === 'cancel') return 'snapshot cancel';
+  if (operation === 'flash' && item && /^(boot|dtbo|vendor_boot|vendor_kernel_boot|init_boot)(?:_[ab])?(?:\.img)?$/.test(item)) return 'boot images';
+  if ((operation === 'erase' || operation === 'wipe') && item === 'userdata') return 'userdata erase';
+  if ((operation === 'erase' || operation === 'wipe') && item === 'metadata') return 'metadata erase';
+  const superMatch = item?.match(/^super(?:[_ -](\d+))?(?:\.img)?$/);
+  if (operation === 'flash' && superMatch) return `super ${superMatch[1] ?? '?'}/16`;
+  return state.installerState.replaceAll('_', ' ');
+};
+
 const statusTone = (state: InstallerState): 'success' | 'warning' | 'error' | 'waiting' | 'neutral' => {
   if (state === 'ERROR') return 'error';
   if (['COMPLETE', 'LOCKED', 'LOCK_READY', 'VERIFIED'].includes(state)) return 'success';
   if (['UNLOCK_REQUIRED', 'WAITING_USER_UNLOCK', 'WAITING_USER_LOCK'].includes(state)) return 'warning';
-  if (['CONNECTING', 'DOWNLOADING', 'VERIFYING', 'FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'LOCKING', 'REBOOTING'].includes(state)) return 'waiting';
+  if (['CONNECTING', 'DOWNLOADING', 'VERIFYING', 'FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'LOCKING', 'REBOOTING'].includes(state)) return 'waiting';
   return 'neutral';
 };
 
@@ -116,12 +153,15 @@ const serialMatches = (actual: string | null | undefined, expected: string | nul
 };
 
 const currentStepIndex = (state: InstallerState): number => {
-  if (state === 'COMPLETE') return 5;
-  if (['LOCK_READY', 'LOCKING', 'WAITING_USER_LOCK', 'LOCKED', 'REBOOTING'].includes(state)) return 5;
-  if (['FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE'].includes(state)) return 4;
-  if (['VERIFYING', 'VERIFIED'].includes(state)) return 3;
-  if (['DOWNLOADING', 'DOWNLOADED'].includes(state)) return 2;
-  if (['DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'UNLOCKED'].includes(state)) return 1;
+  if (state === 'COMPLETE') return 13;
+  if (['REBOOTING'].includes(state)) return 13;
+  if (['LOCKING', 'WAITING_USER_LOCK', 'LOCKED'].includes(state)) return 12;
+  if (state === 'LOCK_READY') return 11;
+  if (['FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'FLASH_COMPLETE'].includes(state)) return 10;
+  if (['UNLOCKING', 'WAITING_USER_UNLOCK', 'UNLOCKED'].includes(state)) return 4;
+  if (['DEVICE_VERIFIED', 'UNLOCK_REQUIRED'].includes(state)) return 3;
+  if (['CONNECTED'].includes(state)) return 2;
+  if (['VERIFYING', 'VERIFIED'].includes(state)) return 1;
   return 0;
 };
 
@@ -130,16 +170,19 @@ const headerStateLabel = (state: AppState): string => {
     case 'IDLE':
     case 'CONNECTING':
     case 'CONNECTED':
-      return 'Ready to connect your Pixel';
+      return 'Ready to connect your device';
     case 'DOWNLOADING':
-      return 'Downloading Worm OS';
+      return 'Downloading image';
+    case 'DOWNLOAD_PAUSED':
+      return 'Download paused';
     case 'VERIFYING':
       return 'Verifying installation image';
     case 'FLASHING':
       return state.flash?.operation === 'unpack' || (state.flash?.operation === 'load' && state.flash.item === 'package')
         ? 'Preparing installation files'
-        : 'Installing Worm OS';
+        : 'Installing';
     case 'WAITING_FOR_RECONNECT':
+    case 'WAITING_FOR_FLASH_RESUME':
     case 'RECONNECTING':
     case 'WAITING_MANUAL_RECONNECT':
       return 'Waiting for Pixel';
@@ -148,7 +191,7 @@ const headerStateLabel = (state: AppState): string => {
     case 'ERROR':
       return 'Installation needs attention';
     default:
-      return state.statusMessage || 'Secure Web Installer';
+      return state.statusMessage || 'WebUSB';
   }
 };
 
@@ -167,6 +210,7 @@ const connectionLabel = (tone: ConnectionTone): string => {
 
 const isModalTriggerEnabled = (action: ButtonAction, state: AppState): boolean => {
   if (action === 'unlock') return state.installerState === 'UNLOCK_REQUIRED';
+  if (state.testMode && action === 'lock') return state.installerState === 'LOCK_READY';
   if (action === 'lock') return state.installerState === 'LOCK_READY';
   return isEnabled(action, state);
 };
@@ -185,11 +229,24 @@ const stepIcon = (status: VisualStepStatus): string => {
 };
 
 const settingRow = (label: string, value: string): string => `
-  <div class="setting-row">
+  <div class="setting-row info-row">
     <span>${esc(label)}</span>
     <strong>${esc(value)}</strong>
   </div>
 `;
+
+const isDeviceConnected = (state: AppState): boolean => state.deviceInfo.serial !== 'Not connected';
+
+const currentModeLabel = (state: AppState): string => {
+  if (!isDeviceConnected(state)) return '-';
+  if (state.testMode) {
+    const mode = state.logs.findLast((entry) => entry.message === 'Mode: Fastbootd' || entry.message === 'Mode: Bootloader')?.message.replace('Mode: ', '');
+    return mode ?? 'Bootloader';
+  }
+  if (reconnectStates.includes(state.installerState)) return 'Reconnecting';
+  if (state.flash?.operation === 'reboot' && state.flash.item === 'fastbootd') return 'Fastbootd';
+  return 'Bootloader';
+};
 
 export const canFlash = (state: AppState): boolean =>
   state.installerState === 'VERIFIED' &&
@@ -203,57 +260,87 @@ export const canFlash = (state: AppState): boolean =>
   Boolean(state.release) &&
   state.verifiedDigest === state.release?.release.sha256;
 
-export const isEnabled = (action: ButtonAction, state: AppState): boolean => {
-  if (reconnectStates.includes(state.installerState)) {
-    return action === 'reconnect';
+export const computeButtonStates = (state: AppState): Record<ButtonAction, boolean> => {
+  const alwaysEnabledLogButtons = {
+    downloadLog: true,
+    copyLog: true,
+    clearLog: true,
+    exportJson: true
+  };
+  const disabledActions = {
+    connect: false,
+    unlock: false,
+    download: false,
+    verify: false,
+    flash: false,
+    lock: false,
+    reboot: false,
+    reconnect: false,
+    clear: false
+  };
+  if (state.testMode) {
+    return {
+      connect: state.installerState === 'IDLE',
+      unlock: false,
+      download: ['UNLOCKED', 'DEVICE_VERIFIED', 'CONNECTED'].includes(state.installerState),
+      verify: state.installerState === 'DOWNLOADED',
+      flash: state.installerState === 'VERIFIED',
+      lock: state.installerState === 'LOCK_READY',
+      reboot: state.installerState === 'LOCKED',
+      reconnect: state.installerState === 'WAITING_FOR_RECONNECT',
+      clear: false,
+      ...alwaysEnabledLogButtons
+    };
+  }
+  if (state.installerState === 'WAITING_FOR_RECONNECT') {
+    return { ...disabledActions, reconnect: true, ...alwaysEnabledLogButtons };
   }
   if (busyStates.includes(state.installerState)) {
-    return false;
+    return { ...disabledActions, ...alwaysEnabledLogButtons };
+  }
+  return {
+    connect: ['IDLE', 'DOWNLOADED', 'VERIFIED', 'ERROR'].includes(state.installerState),
+    unlock: state.installerState === 'UNLOCK_REQUIRED' && state.unlockAcknowledged,
+    download: ['IDLE', 'CONNECTED', 'DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKED', 'DOWNLOAD_PAUSED', 'DOWNLOADED', 'VERIFIED', 'ERROR'].includes(state.installerState),
+    verify: state.installerState === 'DOWNLOADED',
+    flash: canFlash(state),
+    lock:
+      state.installerState === 'LOCK_READY' &&
+      state.lockAcknowledged &&
+      state.deviceInfo.product === DEVICE_TARGET.codename &&
+      Boolean(state.release) &&
+      Boolean(state.verifiedDigest) &&
+      state.verifiedDigest === state.release?.release.sha256,
+    reboot: state.installerState === 'LOCKED',
+    reconnect: false,
+    clear: true,
+    ...alwaysEnabledLogButtons
+  };
+};
+
+export const isEnabled = (action: ButtonAction, state: AppState): boolean => {
+  const states = computeButtonStates(state);
+  if (action in states) {
+    return states[action];
   }
   switch (action) {
-    case 'connect':
-      return ['IDLE', 'DOWNLOADED', 'VERIFIED', 'ERROR'].includes(state.installerState);
-    case 'unlock':
-      return state.installerState === 'UNLOCK_REQUIRED' && state.unlockAcknowledged;
-    case 'download':
-      return ['IDLE', 'CONNECTED', 'DEVICE_VERIFIED', 'UNLOCK_REQUIRED', 'UNLOCKED', 'DOWNLOADED', 'VERIFIED', 'ERROR'].includes(state.installerState);
-    case 'verify':
-      return state.installerState === 'DOWNLOADED';
-    case 'flash':
-      return canFlash(state);
-    case 'lock':
-      return (
-        state.installerState === 'LOCK_READY' &&
-        state.lockAcknowledged &&
-        state.deviceInfo.product === DEVICE_TARGET.codename &&
-        Boolean(state.release) &&
-        Boolean(state.verifiedDigest) &&
-        state.verifiedDigest === state.release?.release.sha256
-      );
-    case 'reboot':
-      return state.installerState === 'LOCKED';
-    case 'reconnect':
-      return reconnectStates.includes(state.installerState);
-    case 'clear':
-      return !busyStates.includes(state.installerState);
     case 'downloadLog':
     case 'copyLog':
     case 'clearLog':
     case 'exportJson':
       return true;
+    default:
+      return false;
   }
 };
 
-export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppState) => void) => {
-  let activeLogFilter = 'All';
-  let logExpanded = false;
-  let autoScroll = true;
+export const createUi = (root: HTMLElement, actions: UiActions, options: UiOptions = {}): ((state: AppState) => void) => {
   let modalKind: ModalKind = null;
+  let debugOpen = false;
   let latestState: AppState | null = null;
-  const logFilters = ['All', 'USB', 'Fastboot', 'ZIP', 'Download', 'Verify', 'Flash', 'Reconnect', 'Errors'];
 
   root.innerHTML = `
-    <section class="catalina-shell" aria-label="Worm OS WebUSB Installer">
+    <section class="catalina-shell" aria-label="WebUSB Installer">
       <section class="mac-window">
         <header class="titlebar">
           <div class="traffic-lights" aria-hidden="true">
@@ -262,7 +349,8 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
             <span class="traffic-light traffic-zoom"></span>
           </div>
           <div class="titlebar-center">
-            <strong>Worm OS Installer</strong>
+            <strong>Web Installer</strong>
+            <span class="mock-mode-badge" aria-label="Test mode active">TEST MODE</span>
           </div>
           <div class="titlebar-status" aria-label="Connection status">
             <span id="connection-dot" class="connection-dot is-disconnected"></span>
@@ -272,9 +360,8 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
         <div class="window-body">
           <main class="main-pane" aria-label="Main installation view">
             <header class="main-header">
-              <h1>Worm OS</h1>
-              <p>Secure Web Installer</p>
-              <strong id="header-state" aria-live="polite">Ready to connect your Pixel</strong>
+              <h1>WebUSB</h1>
+              <strong id="header-state" aria-live="polite">Ready to connect your device</strong>
             </header>
 
             <section class="setup-steps" id="setup-steps" aria-label="Installation steps"></section>
@@ -284,47 +371,35 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
             <section class="device-card panel" aria-label="Device information">
               <div class="card-heading">
                 <div>
-                  <h2>${esc(targetName)}</h2>
-                  <p>${esc(DEVICE_TARGET.codename)}</p>
+                  <h2 id="device-name">Device</h2>
                 </div>
                 <strong class="badge" id="device-status">Disconnected</strong>
               </div>
               <div class="settings-list" id="device-settings"></div>
             </section>
 
-            <section class="release-card panel" id="release-card" aria-label="Worm OS release"></section>
+            <section class="release-card panel" id="release-card" aria-label="Installation image"></section>
 
             <section class="action-card panel">
               <div class="status-message" id="status-message" aria-live="polite"></div>
               <div class="error-message" id="error-message" aria-live="assertive"></div>
               <div class="button-grid" id="button-grid"></div>
             </section>
+
+            <section class="recent-activity-card panel" aria-label="Recent Activity">
+              <div class="card-heading">
+                <h2>Recent Activity</h2>
+              </div>
+              <ol id="recent-activity-list"></ol>
+              <div class="footer-tools">
+                <button type="button" class="utility-button" id="debug-button">Debug</button>
+                <button type="button" class="utility-button" id="test-installer-button">Test Installer</button>
+                <button type="button" class="utility-button" id="exit-test-button">Exit Test</button>
+              </div>
+              <div id="debug-panel-host"></div>
+            </section>
           </main>
         </div>
-
-        <section class="technical-log" id="technical-log">
-          <div class="recent-activity" aria-label="Recent activity">
-            <strong>Recent activity</strong>
-            <ol id="recent-activity-list"></ol>
-          </div>
-          <button type="button" class="log-toggle" id="log-toggle" aria-expanded="false">Show technical log</button>
-          <div class="console-panel" id="console-panel">
-            <div class="console-toolbar">
-              <div>
-                <span>Console</span>
-                <strong id="fastboot-api">fastboot: not inspected</strong>
-              </div>
-              <label class="auto-scroll"><input id="auto-scroll" type="checkbox" checked /> Auto-scroll</label>
-            </div>
-            <div class="session-line">Installation session: <strong id="session-id"></strong></div>
-            <div class="log-tools">
-              <div class="log-filters" id="log-filters"></div>
-              <span id="log-count">Logs: 0</span>
-            </div>
-            <ol class="log-list" id="log-list" aria-live="polite"></ol>
-            <div class="log-export" id="log-export"></div>
-          </div>
-        </section>
 
         <div class="modal-layer" id="modal-layer" hidden></div>
       </section>
@@ -332,13 +407,12 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
   `;
 
   const buttonGrid = root.querySelector<HTMLDivElement>('#button-grid');
-  const logFiltersRoot = root.querySelector<HTMLDivElement>('#log-filters');
-  const logExport = root.querySelector<HTMLDivElement>('#log-export');
-  const autoScrollInput = root.querySelector<HTMLInputElement>('#auto-scroll');
-  const logToggle = root.querySelector<HTMLButtonElement>('#log-toggle');
+  const debugButton = root.querySelector<HTMLButtonElement>('#debug-button');
+  const testInstallerButton = root.querySelector<HTMLButtonElement>('#test-installer-button');
+  const exitTestButton = root.querySelector<HTMLButtonElement>('#exit-test-button');
   const modalLayer = root.querySelector<HTMLDivElement>('#modal-layer');
 
-  if (!buttonGrid || !logFiltersRoot || !logExport || !autoScrollInput || !logToggle || !modalLayer) {
+  if (!buttonGrid || !debugButton || !testInstallerButton || !exitTestButton || !modalLayer) {
     throw new Error('Installer controls were not mounted.');
   }
 
@@ -346,16 +420,36 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
     if (latestState) render(latestState);
   };
 
-  const toggleLog = (): void => {
-    logExpanded = !logExpanded;
+  debugButton.addEventListener('click', () => {
+    debugOpen = true;
     rerender();
-  };
-
-  autoScrollInput.addEventListener('change', () => {
-    autoScroll = autoScrollInput.checked;
   });
-  logToggle.addEventListener('click', toggleLog);
+
+  testInstallerButton.addEventListener('click', () => {
+    modalKind = 'test';
+    rerender();
+  });
+
+  exitTestButton.addEventListener('click', () => {
+    actions.exitTest();
+  });
+
   root.addEventListener('click', (event) => {
+    const debugAction = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-debug-action]');
+    if (debugAction && latestState) {
+      if (debugAction.dataset.debugAction === 'copy') {
+        void copyDebugInfo(latestState);
+      }
+      if (debugAction.dataset.debugAction === 'download') {
+        downloadDebugJson(latestState);
+      }
+      if (debugAction.dataset.debugAction === 'close') {
+        debugOpen = false;
+        rerender();
+      }
+      return;
+    }
+
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('.step-card button[data-action], .complete-actions button[data-action]');
     if (!button || button.disabled) return;
     const action = button.dataset.action as ButtonAction;
@@ -380,20 +474,12 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
       actions.lock();
       rerender();
     }
-  });
-
-  for (const filter of logFilters) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'filter-button';
-    button.dataset.filter = filter;
-    button.textContent = filter;
-    button.addEventListener('click', () => {
-      activeLogFilter = filter;
+    if (target.dataset.modalConfirm === 'test') {
+      modalKind = null;
+      actions.startTest();
       rerender();
-    });
-    logFiltersRoot.append(button);
-  }
+    }
+  });
 
   for (const key of ['connect', 'unlock', 'download', 'verify', 'flash', 'lock', 'reboot', 'reconnect', 'clear'] as ButtonAction[]) {
     const button = document.createElement('button');
@@ -416,15 +502,6 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
     buttonGrid.append(button);
   }
 
-  for (const key of ['downloadLog', 'copyLog', 'clearLog', 'exportJson'] as ButtonAction[]) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.dataset.action = key;
-    button.textContent = buttonLabels[key];
-    button.addEventListener('click', actions[key]);
-    logExport.append(button);
-  }
-
   const render = (state: AppState): void => {
     latestState = state;
     const setupSteps = root.querySelector<HTMLElement>('#setup-steps');
@@ -432,17 +509,14 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
     const releaseCard = root.querySelector<HTMLElement>('#release-card');
     const actionCard = root.querySelector<HTMLElement>('.action-card');
     const deviceSettings = root.querySelector<HTMLElement>('#device-settings');
+    const deviceName = root.querySelector<HTMLElement>('#device-name');
     const deviceStatus = root.querySelector<HTMLElement>('#device-status');
     const connectionDot = root.querySelector<HTMLElement>('#connection-dot');
     const headerState = root.querySelector<HTMLElement>('#header-state');
     const statusMessage = root.querySelector<HTMLElement>('#status-message');
     const errorMessage = root.querySelector<HTMLElement>('#error-message');
-    const logList = root.querySelector<HTMLOListElement>('#log-list');
-    const fastbootApi = root.querySelector<HTMLElement>('#fastboot-api');
-    const sessionId = root.querySelector<HTMLElement>('#session-id');
-    const logCount = root.querySelector<HTMLElement>('#log-count');
-    const technicalLog = root.querySelector<HTMLElement>('#technical-log');
     const recentActivityList = root.querySelector<HTMLOListElement>('#recent-activity-list');
+    const debugPanelHost = root.querySelector<HTMLElement>('#debug-panel-host');
 
     if (
       !setupSteps ||
@@ -450,37 +524,34 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
       !releaseCard ||
       !actionCard ||
       !deviceSettings ||
+      !deviceName ||
       !deviceStatus ||
       !connectionDot ||
       !headerState ||
       !statusMessage ||
       !errorMessage ||
-      !logList ||
-      !fastbootApi ||
-      !sessionId ||
-      !logCount ||
-      !technicalLog ||
-      !recentActivityList
+      !recentActivityList ||
+      !debugPanelHost
     ) {
       throw new Error('Installer UI is missing required elements.');
     }
 
     const tone = connectionTone(state);
     const connected = tone === 'connected';
+    const hasDevice = isDeviceConnected(state);
     const activeStep = currentStepIndex(state.installerState);
 
     root.dataset.tone = statusTone(state.installerState);
-    root.dataset.activity = ['DOWNLOADING', 'VERIFYING', 'FLASHING', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'].includes(state.installerState) ? 'critical' : 'idle';
-    technicalLog.classList.toggle('is-expanded', logExpanded);
-    logToggle.textContent = logExpanded ? 'Hide technical log' : 'Show technical log';
-    logToggle.setAttribute('aria-expanded', String(logExpanded));
+    root.dataset.activity = ['DOWNLOADING', 'VERIFYING', 'FLASHING', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'].includes(state.installerState) ? 'critical' : 'idle';
+    root.dataset.testMode = state.testMode ? 'true' : 'false';
 
     connectionDot.className = `connection-dot is-${tone}`;
     connectionDot.setAttribute('aria-label', connectionLabel(tone));
     headerState.textContent = headerStateLabel(state);
+    deviceName.textContent = displayDeviceName(state);
     deviceStatus.textContent = connected ? 'Connected' : 'Disconnected';
     deviceStatus.classList.toggle('is-good', connected);
-    actionCard.hidden = reconnectStates.includes(state.installerState) || state.installerState === 'COMPLETE';
+    actionCard.hidden = state.installerState === 'COMPLETE';
 
     setupSteps.innerHTML = flowSteps
       .map((step, index) => {
@@ -501,70 +572,50 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
       .join('');
 
     deviceSettings.innerHTML = [
-      settingRow('Bootloader', state.deviceInfo.bootloader),
-      settingRow('Mode', reconnectStates.includes(state.installerState) ? 'Reconnecting' : 'Fastboot'),
+      settingRow('Product', hasDevice ? state.deviceInfo.product : '-'),
+      settingRow('Bootloader', hasDevice ? state.deviceInfo.bootloader : 'Unknown'),
+      settingRow('Mode', currentModeLabel(state)),
+      settingRow('Connection', connectionLabel(tone)),
       settingRow('Release', state.release?.release.id ?? 'Not loaded')
     ].join('');
 
     releaseCard.innerHTML = renderReleaseCard(state);
     currentCard.innerHTML = renderCurrentCard(state);
-    statusMessage.textContent = state.statusMessage;
-    errorMessage.textContent = state.errorMessage ?? '';
-
-    fastbootApi.textContent = state.fastbootInspection
-      ? `android-fastboot ${state.fastbootInspection.version}: ${state.fastbootInspection.flashFactoryZipSignature}`
-      : 'fastboot: not inspected';
-    sessionId.textContent = state.sessionId;
-    logCount.textContent = `Logs: ${state.logCount}`;
+    statusMessage.textContent = neutralizeBranding(state.statusMessage);
+    errorMessage.textContent = state.errorMessage ? neutralizeBranding(state.errorMessage) : '';
 
     const primaryAction = (['connect', 'download', 'verify', 'flash', 'reconnect', 'reboot'] as ButtonAction[]).find((action) =>
       isModalTriggerEnabled(action, state)
     );
+    const buttonStates = computeButtonStates(state);
 
     for (const button of root.querySelectorAll<HTMLButtonElement>('button[data-action]')) {
       const action = button.dataset.action as ButtonAction;
       const logAction = ['downloadLog', 'copyLog', 'clearLog', 'exportJson'].includes(action);
-      const enabled = logAction ? true : isModalTriggerEnabled(action, state);
+      const enabled = logAction ? true : action === 'unlock' || action === 'lock' ? isModalTriggerEnabled(action, state) : buttonStates[action];
       button.disabled = !enabled;
-      button.hidden = !logAction && (!enabled || (action === 'reconnect' && !reconnectStates.includes(state.installerState)));
+      button.hidden = false;
       button.classList.toggle('is-primary', action === primaryAction || (state.installerState === 'COMPLETE' && action === 'reboot'));
       button.classList.toggle('is-danger', ['unlock', 'lock', 'clear', 'clearLog'].includes(action));
     }
 
-    for (const button of root.querySelectorAll<HTMLButtonElement>('button[data-filter]')) {
-      button.classList.toggle('is-active', button.dataset.filter === activeLogFilter);
-    }
-
-    renderModal(modalLayer, modalKind);
-    const visibleLogs = filterLogs(state.logs, activeLogFilter);
+    renderModal(modalLayer, modalKind, state, options);
+    testInstallerButton.hidden = !options.authenticated || state.testMode;
+    exitTestButton.hidden = !state.testMode;
+    debugButton.setAttribute('aria-expanded', String(debugOpen));
+    debugPanelHost.innerHTML = debugOpen ? renderDebugPanel(state, options) : '';
     recentActivityList.replaceChildren(
-      ...state.logs.slice(-8).map((entry) => {
+      ...recentActivity(state.logs).map((entry) => {
         const item = document.createElement('li');
-        item.textContent = compactLogMessage(entry);
-        return item;
-      })
-    );
-    logList.replaceChildren(
-      ...visibleLogs.map((entry) => {
-        const item = document.createElement('li');
-        item.className = `log-entry log-${entry.level.toLowerCase()} log-category-${entry.category.toLowerCase()}`;
-        const time = document.createElement('span');
-        time.className = 'log-time';
-        time.textContent = entry.timestamp;
-        const category = document.createElement('span');
-        category.className = 'log-category';
-        category.textContent = entry.category;
+        const dot = document.createElement('span');
+        dot.className = `activity-dot is-${activityTone(entry)}`;
+        dot.setAttribute('aria-hidden', 'true');
         const message = document.createElement('span');
-        message.className = 'log-message';
-        message.textContent = entry.message;
-        item.append(time, category, message);
+        message.textContent = compactLogMessage(entry);
+        item.append(dot, message);
         return item;
       })
     );
-
-    if (autoScroll) {
-      logList.scrollTop = logList.scrollHeight;
-    }
   };
 
   return render;
@@ -572,17 +623,103 @@ export const createUi = (root: HTMLElement, actions: UiActions): ((state: AppSta
 
 const compactLogMessage = (entry: LogEntry): string => {
   if (entry.category === 'ERROR' && entry.details && typeof entry.details === 'object' && 'message' in entry.details) {
-    return String((entry.details as { message?: unknown }).message ?? entry.message);
+    return neutralizeBranding(String((entry.details as { message?: unknown }).message ?? entry.message));
   }
-  return entry.message;
+  if (entry.message === 'Waiting for manual reconnect') return 'Waiting for reconnect';
+  if (entry.message === 'Reconnect Pixel clicked') return 'Waiting for reconnect';
+  if (entry.message === 'Worm OS installation complete') return 'Installation complete';
+  if (entry.message === 'Download complete') return 'Image downloaded';
+  if (entry.message === 'Verified Boot key') return 'Preparing avb_custom_key';
+  if (entry.message.startsWith('Mode: ')) return entry.message.replace('Mode: ', 'Pixel restarted ');
+  return neutralizeBranding(entry.message);
+};
+
+const neutralizeBranding = (message: string): string =>
+  message
+    .replaceAll('Worm OS installation complete', 'Installation complete')
+    .replaceAll('Worm OS release', 'installation image')
+    .replaceAll('Worm OS installer', 'web installer')
+    .replaceAll('Worm OS factory ZIP', 'factory ZIP')
+    .replaceAll('Worm OS installation', 'installation')
+    .replaceAll('Worm OS', 'installation image');
+
+const allowedActivityPatterns = [
+  /^Pixel connected$/,
+  /^Pixel disconnected$/,
+  /^Device verified$/,
+  /^Download started$/,
+  /^Download (25|50|75)%$/,
+  /^Image verified$/,
+  /^Image downloaded$/,
+  /^Download complete$/,
+  /^Verifying image$/,
+  /^(50|100)%$/,
+  /^Installation started$/,
+  /^Unpacking bootloader$/,
+  /^Bootloader (25|50|75|100)%$/,
+  /^Preparing .+/,
+  /^Flashing .+ (25|50|75|100)%$/,
+  /^radio start$/,
+  /^radio (0|25|50|75|100)%$/,
+  /^radio complete$/,
+  /^Lock requested$/,
+  /^Waiting for confirmation$/,
+  /^Bootloader locked$/,
+  /^Rebooting$/,
+  /^Complete$/,
+  /^Pixel restarted$/,
+  /^Waiting for manual reconnect$/,
+  /^Reconnect Pixel clicked$/,
+  /^requested after radio$/,
+  /^waiting for manual click$/,
+  /^connect\(\) start$/,
+  /^connect\(\) success$/,
+  /^Pixel reconnected$/,
+  /^Installation resumed$/,
+  /^Installation complete$/,
+  /^Worm OS installation complete$/,
+  /^Verified Boot key$/
+];
+
+const isEssentialEvent = (entry: LogEntry): boolean =>
+  entry.level === 'ERROR' || entry.level === 'WARN' || allowedActivityPatterns.some((pattern) => pattern.test(entry.message));
+
+const isRecentActivityEvent = (entry: LogEntry): boolean => {
+  if (entry.level === 'ERROR') {
+    return entry.message === 'Installation error' || entry.message === 'Installation stopped.';
+  }
+  return isEssentialEvent(entry);
+};
+
+const recentActivity = (entries: LogEntry[]): LogEntry[] => entries.filter(isRecentActivityEvent).slice(-6);
+
+const debugEvents = (entries: LogEntry[]): LogEntry[] => entries.filter(isEssentialEvent).slice(-10);
+
+const activityTone = (entry: LogEntry): 'good' | 'warning' | 'error' | 'waiting' | 'neutral' => {
+  if (entry.level === 'ERROR') return 'error';
+  if (entry.level === 'WARN') return 'warning';
+  if (/complete|verified|connected|resumed/i.test(entry.message)) return 'good';
+  if (/waiting|preparing|flashing|started|restarted/i.test(entry.message)) return 'waiting';
+  return 'neutral';
 };
 
 const renderCurrentCard = (state: AppState): string => {
+  const verify = state.verify ?? {
+    state: 'idle',
+    verifiedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    expectedSha256: null,
+    actualSha256: null,
+    metadataVerified: false,
+    fileAvailable: false,
+    fileSize: null
+  };
   if (state.installerState === 'COMPLETE') {
     return `
       <div class="complete-view">
         <div class="complete-check" aria-hidden="true">✓</div>
-        <h2>Worm OS is ready</h2>
+        <h2>Installation Complete</h2>
         <p>${esc(targetName)}</p>
         <p>Release ${esc(state.release?.release.id ?? 'Not available')}</p>
         <div class="complete-actions">
@@ -594,25 +731,30 @@ const renderCurrentCard = (state: AppState): string => {
   }
 
   if (reconnectStates.includes(state.installerState)) {
+    const postRadioReconnect = state.installerState === 'WAITING_FOR_RECONNECT' && state.flash?.item === 'radio';
     return `
       <div class="center-stage">
-        <h2>Pixel restarted</h2>
-        <p>Reconnect the Pixel to continue installation.</p>
-        <button type="button" class="is-primary" data-action="reconnect">Reconnect Device</button>
+        <h2>${postRadioReconnect ? 'Radio installed' : 'Pixel restarted'}</h2>
+        <p>${postRadioReconnect ? 'Pixel restarted into bootloader.' : esc(state.statusMessage || 'Reconnect the Pixel to continue installation.')}</p>
+        <button type="button" class="is-primary" data-action="reconnect">Reconnect Pixel</button>
+      </div>
+      <div class="info-list">
+        ${currentOperationRows(state)}
       </div>
     `;
   }
 
   if (state.installerState === 'VERIFYING') {
+    const verificationPercent = verify.percent || state.progress;
     return `
       <div class="center-stage">
-        <h2>Verifying Worm OS</h2>
-        <p>SHA-256 verification</p>
+        <h2>Verify Image</h2>
+        <p>Verifying image</p>
       </div>
-      ${progressBar(state.progress, false)}
+      ${progressBar(verificationPercent, false, 'Verification progress')}
       <div class="info-list">
         ${settingRow('Expected', abbreviateHash(state.release?.release.sha256))}
-        ${settingRow('Status', state.releaseVerified ? 'Verified ✓' : 'Verifying')}
+        ${settingRow('Status', state.releaseVerified ? 'Image verified ✓' : `Verifying image ${Math.round(verificationPercent)}%`)}
       </div>
     `;
   }
@@ -622,17 +764,13 @@ const renderCurrentCard = (state: AppState): string => {
     const itemPercent = state.flash?.itemPercent ?? 0;
     return `
       <div class="center-stage">
-        <h2>${unpacking ? 'Preparing installation files' : 'Installing Worm OS'}</h2>
+        <h2>${unpacking ? 'Preparing installation files' : 'Install'}</h2>
         <span class="spinner" aria-hidden="true"></span>
         <p>${esc(formatFlashItem(state.flash?.item ?? null))}</p>
       </div>
       ${progressBar(itemPercent, Boolean(state.flash?.overallIndeterminate), unpacking ? 'Unpacking bootloader' : 'Current operation')}
       <div class="info-list">
-        ${settingRow('Stage', unpacking ? 'Preparing installation files' : state.statusMessage)}
-        ${settingRow('Current item', formatFlashItem(state.flash?.item ?? null))}
-        ${settingRow('Mode', state.flash?.operation === 'reboot' && state.flash.item === 'fastbootd' ? 'Fastbootd' : 'Bootloader')}
-        ${settingRow('Connection', 'Connected')}
-        ${settingRow('Current progress', `${itemPercent}%`)}
+        ${currentOperationRows(state)}
       </div>
       ${state.statusMessage.toLowerCase().includes('waiting') || state.statusMessage.toLowerCase().includes('time') ? `<div class="inline-warning">${esc(state.statusMessage)}</div>` : ''}
     `;
@@ -646,18 +784,37 @@ const renderCurrentCard = (state: AppState): string => {
       <strong>${esc(state.installerState.replaceAll('_', ' '))}</strong>
     </div>
     <p class="card-copy">${esc(state.statusMessage)}</p>
-    <div class="info-list">
-      ${settingRow('Device', targetName)}
-      ${settingRow('Product', state.deviceInfo.product === 'Unknown' ? DEVICE_TARGET.codename : state.deviceInfo.product)}
-      ${settingRow('Mode', 'Bootloader')}
-      ${settingRow('Connection', state.deviceInfo.serial !== 'Not connected' ? 'Connected' : 'Disconnected')}
-      ${settingRow('Current stage', currentStep)}
-    </div>
   `;
+};
+
+const currentOperationRows = (state: AppState): string =>
+  [
+    settingRow('Stage', formatFactoryDebugStage(state)),
+    settingRow('Item', formatFlashItem(state.flash?.item ?? null)),
+    settingRow('Mode', currentModeLabel(state)),
+    settingRow('Connection', connectionLabel(connectionTone(state))),
+    settingRow('Progress', currentProgressLabel(state))
+  ].join('');
+
+const currentProgressLabel = (state: AppState): string => {
+  if (state.flash) return `${Math.round(state.flash.itemPercent)}%`;
+  if (state.download?.percent !== null && state.download?.percent !== undefined) return `${Math.round(state.download.percent)}%`;
+  return `${Math.round(state.progress)}%`;
 };
 
 const renderReleaseCard = (state: AppState): string => {
   const download = state.download;
+  const verify = state.verify ?? {
+    state: 'idle',
+    verifiedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    expectedSha256: null,
+    actualSha256: null,
+    metadataVerified: false,
+    fileAvailable: false,
+    fileSize: null
+  };
   const status =
     state.releaseVerified || download?.verified
       ? 'Downloaded ✓'
@@ -671,7 +828,7 @@ const renderReleaseCard = (state: AppState): string => {
     <div class="card-heading">
       <div>
         <h2>${esc(state.release?.release.id ?? 'Not loaded')}</h2>
-        <p>Worm OS Release</p>
+        <p>Installation Image</p>
       </div>
       <strong class="badge ${state.releaseVerified || download?.verified ? 'is-good' : ''}">${esc(status)}</strong>
     </div>
@@ -679,7 +836,16 @@ const renderReleaseCard = (state: AppState): string => {
       <strong>${download ? `${formatBytes(download.downloadedBytes)} / ${formatBytes(download.totalBytes)}` : 'Waiting'}</strong>
       <span>${download?.percent === null || download?.percent === undefined ? `${state.progress}%` : `${Math.round(download.percent)}%`}</span>
     </div>
+    <div class="info-list">
+      ${settingRow('Device', 'Pixel 10 / frankel')}
+      ${settingRow('Build', state.release?.build ?? state.release?.release.id ?? '2026091500')}
+      ${settingRow('Android', state.release?.android ?? '17')}
+      ${settingRow('Release channel', state.release?.channel ?? 'stable')}
+      ${settingRow('Install type', 'full WebUSB installation')}
+      ${settingRow('Data wipe', 'REQUIRED')}
+    </div>
     ${state.installerState === 'DOWNLOADING' || download ? progressBar(percent ?? 0, false, 'Download progress') : ''}
+    ${verify.state === 'verifying' || verify.state === 'verified' || verify.state === 'failed' ? progressBar(verify.percent, false, 'Verification progress') : ''}
   `;
 };
 
@@ -698,10 +864,25 @@ const progressBar = (percent: number, indeterminate: boolean, label = 'Progress'
   `;
 };
 
-const renderModal = (root: HTMLElement, kind: ModalKind): void => {
+const renderModal = (root: HTMLElement, kind: ModalKind, state: AppState, options: UiOptions = {}): void => {
   if (!kind) {
     root.hidden = true;
     root.innerHTML = '';
+    return;
+  }
+  if (kind === 'test') {
+    root.hidden = false;
+    root.innerHTML = `
+      <div class="modal-backdrop" data-modal-close="true"></div>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">Test Installer</h2>
+        <p>This mode simulates a complete installation. No device will be modified.</p>
+        <div class="modal-actions">
+          <button type="button" data-modal-close="true">Cancel</button>
+          <button type="button" class="is-primary" data-modal-confirm="test">Start Test</button>
+        </div>
+      </section>
+    `;
     return;
   }
   const isUnlock = kind === 'unlock';
@@ -719,12 +900,275 @@ const renderModal = (root: HTMLElement, kind: ModalKind): void => {
   `;
 };
 
-const filterLogs = (entries: LogEntry[], filter: string): LogEntry[] => {
-  if (filter === 'All') return entries;
-  if (filter === 'Errors') return entries.filter((entry) => entry.level === 'ERROR');
-  if (filter === 'ZIP') return entries.filter((entry) => entry.message.includes('[ZIP]') || entry.category === 'FASTBOOT');
-  const category = filter.toUpperCase();
-  return entries.filter((entry) => entry.category === category);
+const renderDebugPanel = (state: AppState, options: UiOptions = {}): string => {
+  const snapshot = createDebugSnapshot(state, options);
+  return `
+    <section class="debug-panel" aria-labelledby="debug-title">
+      <header class="debug-header">
+        <h2 id="debug-title">Debug</h2>
+        <button type="button" class="utility-button" data-debug-action="close">Close</button>
+      </header>
+      <h3>Debug details</h3>
+      <div class="debug-grid">
+        ${debugRow('Session', snapshot.session)}
+        ${debugRow('Device', snapshot.device.name)}
+        ${debugRow('Product', snapshot.device.product)}
+        ${debugRow('Serial masked', snapshot.device.serial)}
+        ${debugRow('Connection', snapshot.connection)}
+        ${debugRow('Mode', snapshot.mode)}
+        ${debugRow('Bootloader', snapshot.device.bootloader)}
+        ${debugRow('Release', snapshot.release)}
+        ${debugRow('Image', snapshot.image)}
+        ${debugRow('Installer state', snapshot.state)}
+        ${debugRow('Verify state', snapshot.verify.state)}
+        ${debugRow('verifiedBytes', snapshot.verify.verifiedBytes)}
+        ${debugRow('totalBytes', snapshot.verify.totalBytes)}
+        ${debugRow('verifyPercent', snapshot.verify.percent)}
+        ${debugRow('expectedSha256', snapshot.verify.expectedSha256)}
+        ${debugRow('actualSha256', snapshot.verify.actualSha256)}
+        ${debugRow('metadataVerified', snapshot.verify.metadataVerified)}
+        ${debugRow('fileAvailable', snapshot.verify.fileAvailable)}
+        ${debugRow('fileSize', snapshot.verify.fileSize)}
+        ${debugRow('Current stage', snapshot.stage)}
+        ${debugRow('Current item', snapshot.item)}
+        ${debugRow('Progress', snapshot.progress)}
+        ${debugRow('lastAction', snapshot.factory.lastAction)}
+        ${debugRow('lastItem', snapshot.factory.lastItem)}
+        ${debugRow('lastProgress', snapshot.factory.lastProgress)}
+        ${debugRow('Last operation', snapshot.factory.lastOperation)}
+        ${debugRow('Last successful operation', snapshot.factory.lastSuccessfulOperation)}
+        ${debugRow('Test mode', snapshot.testMode)}
+        ${debugRow('Mock device', snapshot.mockDevice)}
+        ${debugRow('Factory flash active', snapshot.factoryFlashActive)}
+        ${debugRow('error.name', snapshot.error.name)}
+        ${debugRow('error.message', snapshot.error.message)}
+        ${debugRow('error.constructor.name', snapshot.error.constructorName)}
+        ${debugRow('Fastboot error', snapshot.error.fastbootStatus)}
+        ${debugRow('bootloaderMessage', snapshot.error.bootloaderMessage)}
+        ${debugRow('error.stack', snapshot.error.stack)}
+        ${debugRow('Factory flash error', snapshot.factoryFlashError)}
+        ${debugRow('Factory flash stack', snapshot.factoryFlashStack)}
+        ${debugRow('Reconnect pending', snapshot.reconnect.pending)}
+        ${debugRow('Reconnect sequence', String(snapshot.reconnect.sequence))}
+        ${debugRow('lastConnectError', snapshot.reconnect.lastConnectError)}
+        ${debugRow('ZIP worker', snapshot.zipWorker)}
+        ${debugRow('Last warning', snapshot.lastWarning)}
+        ${debugRow('Last error', snapshot.lastError)}
+      </div>
+      <section class="debug-events" aria-label="Recent debug events">
+        <h3>Recent debug events</h3>
+        <ol>
+          ${snapshot.recentEvents.map((event) => `<li class="debug-event">${esc(event)}</li>`).join('')}
+        </ol>
+      </section>
+      <div class="debug-actions">
+        <button type="button" data-debug-action="copy">Copy Debug</button>
+        <button type="button" data-debug-action="download">Download Debug</button>
+        <button type="button" data-debug-action="close">Close</button>
+      </div>
+    </section>
+  `;
+};
+
+const debugRow = (label: string, value: string): string => `
+  <div class="debug-row">
+    <span>${esc(label)}</span>
+    <strong class="debug-value">${esc(value)}</strong>
+  </div>
+`;
+
+const lastLogMessage = (entries: LogEntry[], level: 'WARN' | 'ERROR'): string => {
+  const message = entries.findLast((entry) => entry.level === level)?.message;
+  return message ? neutralizeBranding(message) : '-';
+};
+
+const reconnectSequence = (entries: LogEntry[]): number => {
+  for (const entry of entries.toReversed()) {
+    if (entry.details && typeof entry.details === 'object' && 'reconnectSequence' in entry.details) {
+      const value = Number((entry.details as { reconnectSequence?: unknown }).reconnectSequence);
+      return Number.isFinite(value) ? value : 0;
+    }
+  }
+  return 0;
+};
+
+const detailString = (details: unknown, key: string): string | null => {
+  if (!details || typeof details !== 'object' || !(key in details)) {
+    return null;
+  }
+  const value = (details as Record<string, unknown>)[key];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return String(value);
+};
+
+const lastDetail = (entries: LogEntry[], key: string): string => {
+  for (const entry of entries.toReversed()) {
+    const value = detailString(entry.details, key);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return '-';
+};
+
+const lastErrorDetail = (entries: LogEntry[], key: string): string => {
+  for (const entry of entries.toReversed()) {
+    if (entry.level !== 'ERROR') {
+      continue;
+    }
+    const value = detailString(entry.details, key);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return '-';
+};
+
+const createDebugSnapshot = (state: AppState, options: UiOptions = {}) => {
+  const connected = isDeviceConnected(state);
+  const events = debugEvents(state.logs).map((entry) => `${entry.timestamp} ${compactLogMessage(entry)}`);
+  const verify = state.verify ?? {
+    state: 'idle',
+    verifiedBytes: 0,
+    totalBytes: 0,
+    percent: 0,
+    expectedSha256: null,
+    actualSha256: null,
+    metadataVerified: false,
+    fileAvailable: false,
+    fileSize: null
+  };
+  return {
+    schemaVersion: 1,
+    session: state.sessionId,
+    device: {
+      name: displayDeviceName(state),
+      product: connected ? state.deviceInfo.product : '-',
+      serial: maskSerial(state.deviceInfo.serial),
+      bootloader: connected ? state.deviceInfo.bootloader : 'Unknown'
+    },
+    connection: connectionLabel(connectionTone(state)),
+    mode: currentModeLabel(state),
+    release: state.release?.release.id ?? '-',
+    image: state.releaseVerified ? 'Verified' : state.releaseComplete || state.releaseFileAvailable ? 'Downloaded' : '-',
+    state: state.installerState,
+    verify: {
+      state: verify.state,
+      verifiedBytes: String(verify.verifiedBytes),
+      totalBytes: String(verify.totalBytes),
+      percent: `${Math.round(verify.percent)}%`,
+      expectedSha256: verify.expectedSha256 ?? '-',
+      actualSha256: verify.actualSha256 ?? '-',
+      metadataVerified: verify.metadataVerified ? 'Yes' : 'No',
+      fileAvailable: verify.fileAvailable ? 'Yes' : 'No',
+      fileSize: verify.fileSize === null ? '-' : String(verify.fileSize)
+    },
+    stage: formatFactoryDebugStage(state),
+    item: formatFlashItem(state.flash?.item ?? null),
+    progress: currentProgressLabel(state),
+    factory: {
+      lastAction: lastDetail(state.logs, 'action'),
+      lastItem: lastDetail(state.logs, 'item'),
+      lastProgress: lastDetail(state.logs, 'percent'),
+      lastOperation: lastDetail(state.logs, 'lastOperation'),
+      lastSuccessfulOperation: lastDetail(state.logs, 'lastSuccessfulOperation')
+    },
+    testMode: state.testMode ? 'Yes' : 'No',
+    mockDevice: state.testMode ? 'Yes' : 'No',
+    factoryFlashActive: ['FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME'].includes(state.installerState) ? 'Yes' : 'No',
+    error: {
+      name: lastErrorDetail(state.logs, 'errorName'),
+      message: lastErrorDetail(state.logs, 'errorMessage'),
+      constructorName: lastErrorDetail(state.logs, 'errorConstructorName'),
+      fastbootStatus: lastErrorDetail(state.logs, 'fastbootStatus'),
+      bootloaderMessage: lastErrorDetail(state.logs, 'bootloaderMessage'),
+      stack: lastErrorDetail(state.logs, 'errorStack')
+    },
+    factoryFlashError: lastErrorDetail(state.logs, 'errorMessage'),
+    factoryFlashStack: lastErrorDetail(state.logs, 'stack') !== '-' ? lastErrorDetail(state.logs, 'stack') : lastErrorDetail(state.logs, 'errorStack'),
+    reconnect: {
+      pending: reconnectStates.includes(state.installerState) ? 'Yes' : 'No',
+      sequence: state.testMode ? state.testReconnectSequence : reconnectSequence(state.logs),
+      lastConnectError: lastDetail(state.logs, 'lastConnectError')
+    },
+    zipWorker: zipWorkerStatus(state),
+    lastWarning: lastLogMessage(state.logs, 'WARN'),
+    lastError: state.errorMessage ?? lastLogMessage(state.logs, 'ERROR'),
+    recentEvents: events
+  };
+};
+
+const zipWorkerStatus = (state: AppState): 'Ready' | 'Error' | 'Unknown' => {
+  if (state.logs.some((entry) => entry.level === 'ERROR' && /zip|worker/i.test(entry.message))) return 'Error';
+  if (state.fastbootInspection?.zipWorkers.length) return 'Ready';
+  return 'Unknown';
+};
+
+const debugText = (state: AppState): string => {
+  const snapshot = createDebugSnapshot(state);
+  return [
+    `session: ${snapshot.session}`,
+    `device: ${snapshot.device.name}`,
+    `product: ${snapshot.device.product}`,
+    `serial: ${snapshot.device.serial}`,
+    `release: ${snapshot.release}`,
+    `state: ${snapshot.state}`,
+    `verifyState: ${snapshot.verify.state}`,
+    `verifiedBytes: ${snapshot.verify.verifiedBytes}`,
+    `totalBytes: ${snapshot.verify.totalBytes}`,
+    `verifyPercent: ${snapshot.verify.percent}`,
+    `expectedSha256: ${snapshot.verify.expectedSha256}`,
+    `actualSha256: ${snapshot.verify.actualSha256}`,
+    `metadataVerified: ${snapshot.verify.metadataVerified}`,
+    `fileAvailable: ${snapshot.verify.fileAvailable}`,
+    `fileSize: ${snapshot.verify.fileSize}`,
+    `stage: ${snapshot.stage}`,
+    `item: ${snapshot.item}`,
+    `progress: ${snapshot.progress}`,
+    `lastAction: ${snapshot.factory.lastAction}`,
+    `lastItem: ${snapshot.factory.lastItem}`,
+    `lastProgress: ${snapshot.factory.lastProgress}`,
+    `Last operation: ${snapshot.factory.lastOperation}`,
+    `Last successful operation: ${snapshot.factory.lastSuccessfulOperation}`,
+    `factoryFlashActive: ${snapshot.factoryFlashActive}`,
+    `error.name: ${snapshot.error.name}`,
+    `error.message: ${snapshot.error.message}`,
+    `error.constructor.name: ${snapshot.error.constructorName}`,
+    `Fastboot error: ${snapshot.error.fastbootStatus}`,
+    `bootloaderMessage: ${snapshot.error.bootloaderMessage}`,
+    `error.stack: ${snapshot.error.stack}`,
+    `Factory flash error: ${snapshot.factoryFlashError}`,
+    `Factory flash stack: ${snapshot.factoryFlashStack}`,
+    `reconnect: ${snapshot.reconnect.pending} / ${snapshot.reconnect.sequence}`,
+    `lastConnectError: ${snapshot.reconnect.lastConnectError}`,
+    `zipWorker: ${snapshot.zipWorker}`,
+    `lastWarning: ${snapshot.lastWarning}`,
+    `lastError: ${snapshot.lastError}`,
+    'recentEvents:',
+    ...snapshot.recentEvents.map((event) => `- ${event}`)
+  ].join('\n');
+};
+
+const copyDebugInfo = async (state: AppState): Promise<void> => {
+  const text = debugText(state);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  textarea.remove();
+};
+
+const downloadDebugJson = (state: AppState): void => {
+  downloadBlob(`worm-debug-${state.sessionId}.json`, new Blob([JSON.stringify(createDebugSnapshot(state), null, 2)], { type: 'application/json' }));
 };
 
 export const downloadTextLog = async (state: AppState): Promise<void> => {
@@ -767,9 +1211,16 @@ const downloadBlob = (filename: string, blob: Blob): void => {
 };
 
 export const __uiTest = {
+  compactLogMessage,
   connectionTone,
+  createUi,
+  createDebugSnapshot,
   currentStepIndex,
+  debugEvents,
+  displayDeviceName,
   headerStateLabel,
+  recentActivity,
   renderCurrentCard,
+  renderDebugPanel,
   renderReleaseCard
 };

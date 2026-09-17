@@ -1,0 +1,7 @@
+auto enp9s0.4000
+iface enp9s0.4000 inet static
+    address 10.90.20.2/24
+    mtu 1400
+    vlan-raw-device enp9s0
+    up ip route replace 10.90.0.0/16 via 10.90.20.1 dev enp9s0.4000 onlink
+    down ip route del 10.90.0.0/16 via 10.90.20.1 dev enp9s0.4000 onlink || true

@@ -1,10 +1,11 @@
 import { BlobStore } from './blob-store';
 import { DEVICE_TARGET } from './config';
-import { assertSha256Matches } from './crypto';
+import { sha256Blob } from './crypto';
 import {
   createFastbootDevice,
   inspectAndroidFastboot,
   normalizeUnlockedState,
+  ZIP_WORKER_CONFIGURATION,
   ZIP_INFLATE_WORKER_URL,
   ZIP_INFLATE_WORKER_SCRIPTS,
   ZIP_PAKO_INFLATE_URL,
@@ -12,6 +13,7 @@ import {
   type FastbootDeviceLike,
   type ReconnectCallback
 } from './fastboot';
+import { buildFlashPlan, formatFlashPlan, openZipEntries, readEntryBlob, type FlashPlan, type FlashPlanStep } from './flash-plan';
 import { maskSerial, collectBrowserCapabilities, setBrowserCapabilities } from './logger';
 import { downloadRelease, fetchReleaseManifest, inspectStoredRelease, MANIFEST_URL, metadataFromManifest, releaseKey } from './release';
 import {
@@ -19,6 +21,7 @@ import {
   enterErrorState,
   getPersistedMetadata,
   getState,
+  isTestMode,
   setCacheKey,
   setDeviceInfo,
   setDownloadProgress,
@@ -32,6 +35,7 @@ import {
   setStatusMessage,
   setUnlockAcknowledged,
   setVerifiedDigest,
+  setVerifyProgress,
   returnToIdle,
   transitionInstallerState,
   updatePersistedMetadata,
@@ -59,6 +63,7 @@ type WakeLockNavigator = Navigator & {
 type InstallerDependencies = {
   createDevice?: () => Promise<FastbootDeviceLike>;
   store?: BlobStore;
+  mockMode?: boolean;
 };
 
 type FlashPrerequisites = {
@@ -81,6 +86,8 @@ type FlashActivitySnapshot = {
   lastAction: string | null;
   lastItem: string | null;
   lastProgress: number | null;
+  lastOperation: string | null;
+  lastSuccessfulOperation: string | null;
 };
 
 type NavigatorWithMemory = Navigator & {
@@ -110,6 +117,23 @@ type ZipWorkerFailureSnapshot = {
 type ReconnectManagerOptions = {
   onExpectedDisconnect?: (device: USBDevice) => void;
 };
+
+class FastbootSession {
+  private devicePromise: Promise<FastbootDeviceLike> | null = null;
+  device: FastbootDeviceLike | null = null;
+
+  constructor(private readonly createDevice: () => Promise<FastbootDeviceLike>) {}
+
+  async getDevice(): Promise<FastbootDeviceLike> {
+    if (!this.devicePromise) {
+      this.devicePromise = this.createDevice().then((device) => {
+        this.device = device;
+        return device;
+      });
+    }
+    return this.devicePromise;
+  }
+}
 
 let lastZipWorkerFailure: ZipWorkerFailureSnapshot | null = null;
 let zipWorkerDiagnosticsInstalled = false;
@@ -169,7 +193,9 @@ export class FlashActivityWatchdog {
     lastUsbActivityAt: null,
     lastAction: null,
     lastItem: null,
-    lastProgress: null
+    lastProgress: null,
+    lastOperation: null,
+    lastSuccessfulOperation: null
   };
 
   constructor(
@@ -288,6 +314,41 @@ const usbDiagnostics = (device: USBDevice): { vendorId: number | null; productId
   return { vendorId: device.vendorId ?? null, productId: details.productId ?? null, serial: maskSerial(device.serialNumber) };
 };
 
+type UsbAlternateDescriptor = {
+  interfaceClass?: number;
+  interfaceSubclass?: number;
+  interfaceProtocol?: number;
+};
+
+type UsbInterfaceDescriptor = {
+  alternates?: UsbAlternateDescriptor[];
+};
+
+type UsbConfigurationDescriptor = {
+  interfaces?: UsbInterfaceDescriptor[];
+};
+
+type UsbDeviceWithDescriptors = USBDevice & {
+  configurations?: UsbConfigurationDescriptor[];
+};
+
+const hasFastbootInterface = (device: USBDevice): boolean => {
+  const configurations = (device as UsbDeviceWithDescriptors).configurations ?? [];
+  if (configurations.length === 0) {
+    return true;
+  }
+  return configurations.some((configuration) =>
+    (configuration.interfaces ?? []).some((usbInterface) =>
+      (usbInterface.alternates ?? []).some(
+        (alternate) => alternate.interfaceClass === 0xff && alternate.interfaceSubclass === 0x42 && alternate.interfaceProtocol === 0x03
+      )
+    )
+  );
+};
+
+const isAuthorizedFastbootCandidate = (device: USBDevice, expectedSerial: string | null | undefined): boolean =>
+  device.vendorId === DEVICE_TARGET.usbVendorId && reconnectSerialMatches(device.serialNumber, expectedSerial) && hasFastbootInterface(device);
+
 const USB_LOG_PATCHED = Symbol('wormUsbLoggingPatched');
 
 type UsbDeviceWithTransfers = USBDevice & {
@@ -297,7 +358,7 @@ type UsbDeviceWithTransfers = USBDevice & {
 };
 
 const isActiveOperation = (): boolean =>
-  ['DOWNLOADING', 'VERIFYING', 'FLASHING', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'LOCKING', 'WAITING_USER_LOCK', 'REBOOTING'].includes(
+  ['DOWNLOADING', 'VERIFYING', 'FLASHING', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT', 'UNLOCKING', 'WAITING_USER_UNLOCK', 'LOCKING', 'WAITING_USER_LOCK', 'REBOOTING'].includes(
     getState().installerState
   );
 
@@ -466,52 +527,78 @@ export class ReconnectManager {
 }
 
 export class Installer {
-  private device: FastbootDeviceLike | null = null;
+  private readonly fastbootSession: FastbootSession;
   private releaseBlob: Blob | null = null;
   private manifest: ReleaseManifest | null = null;
   private verifiedSha256: string | null = null;
   private readonly store: BlobStore;
+  private readonly mockMode: boolean;
   private readonly wakeLock = new WakeLockManager();
   private downloadAbortController: AbortController | null = null;
   private destructiveOperation = false;
   private reconnectManager: ReconnectManager | null = null;
-  private readonly reconnectLogMessages = new Set<string>();
   private flashWatchdog: FlashActivityWatchdog | null = null;
   private zipWatchdog: ZipUnpackWatchdog | null = null;
-  private flashReconnectActive = false;
+  private factoryFlashActive = false;
+  private factoryReconnectPending = false;
+  private factoryWaitingForFlashResume = false;
+  private reconnectBusy = false;
+  private reconnectSequence = 0;
+  private currentFlashAttemptId = 0;
+  private terminalFlashAttemptId: number | null = null;
+  private lastFlashActivity: FlashActivitySnapshot = {
+    lastProgressAt: null,
+    lastFastbootActivityAt: null,
+    lastUsbActivityAt: null,
+    lastAction: null,
+    lastItem: null,
+    lastProgress: null,
+    lastOperation: null,
+    lastSuccessfulOperation: null
+  };
   private flashReconnectReminder: ReturnType<typeof globalThis.setTimeout> | null = null;
   private readonly onBeforeUnload = (event: BeforeUnloadEvent): string | undefined => {
     if (!this.downloadAbortController) {
       return undefined;
     }
     event.preventDefault();
-    event.returnValue = 'A Worm OS release download is still in progress.';
+    event.returnValue = 'An installation image download is still in progress.';
     return event.returnValue;
   };
 
   constructor(private readonly dependencies: InstallerDependencies = {}) {
     this.store = dependencies.store ?? new BlobStore();
+    this.mockMode = import.meta.env.DEV && dependencies.mockMode === true;
+    this.fastbootSession = new FastbootSession(() => this.createLoggedDevice());
   }
 
   async init(): Promise<void> {
+    this.assertRealInstallerAllowed('init');
     await restoreLogsForCurrentSession();
     const capabilities = await collectBrowserCapabilities(MANIFEST_URL);
     setBrowserCapabilities(capabilities);
     await this.store.init();
     setFastbootInspection(await inspectAndroidFastboot());
     installZipWorkerErrorDiagnostics();
-    await this.restoreStoredReleaseState();
+    if (this.mockMode) {
+      await this.restoreMockReleaseState();
+    } else {
+      await this.restoreStoredReleaseState();
+    }
   }
 
   async connect(manual = true): Promise<void> {
     try {
+      this.assertRealInstallerAllowed('connect');
       transitionInstallerState(getState().installerState === 'ERROR' ? 'CONNECTING' : 'CONNECTING', 'Connecting to Pixel...');
-      const usb = requireWebUsb();
+      if (!this.mockMode) {
+        requireWebUsb();
+      }
       if (manual) {
         addLog('USB', 'Pixel connected', undefined, 'USB');
       }
-      this.device = await this.createLoggedDevice();
-      await this.device.connect();
+      const device = await this.getSessionDevice();
+      await device.connect();
       transitionInstallerState('CONNECTED', 'Pixel connected.');
       addLog('USB', 'Pixel connected', undefined, 'USB');
       await this.verifyConnectedDevice();
@@ -521,6 +608,7 @@ export class Installer {
   }
 
   async verifyConnectedDevice(): Promise<void> {
+    this.assertRealInstallerAllowed('verifyConnectedDevice');
     const device = this.requireDevice();
     const product = await device.getVariable('product');
     const serial = await device.getVariable('serialno');
@@ -549,6 +637,12 @@ export class Installer {
     transitionInstallerState('DEVICE_VERIFIED', 'Pixel product and serial verified.');
     addLog('DEVICE', `Pixel verified: ${product}`, { product, serial: maskSerial(serial) }, 'DEVICE');
     addLog('DEVICE', `Bootloader ${bootloaderState === 'yes' ? 'unlocked' : bootloaderState === 'no' ? 'locked' : 'unknown'}`, { unlocked: bootloaderState }, 'DEVICE');
+    if (this.mockMode) {
+      addLog('DEVICE', `Product verified: ${product}`, { product }, 'DEVICE');
+      if (bootloaderState === 'yes') {
+        addLog('DEVICE', 'Bootloader unlocked', { unlocked: bootloaderState }, 'DEVICE');
+      }
+    }
 
     if (bootloaderState === 'yes') {
       if (this.isRuntimeReleaseVerified()) {
@@ -572,6 +666,7 @@ export class Installer {
 
   async unlockBootloader(): Promise<void> {
     try {
+      this.assertRealInstallerAllowed('unlockBootloader');
       addLog('BOOTLOADER', 'Unlock requested', undefined, 'BOOTLOADER');
       if (!getState().unlockAcknowledged) {
         addLog('WARN', 'Unlock cancelled: acknowledgement missing');
@@ -599,14 +694,15 @@ export class Installer {
   }
 
   async reconnectAfterUnlock(): Promise<void> {
+    this.assertRealInstallerAllowed('reconnectAfterUnlock');
     const usb = requireWebUsb();
     const manager = this.createReconnectManager(usb);
     await manager.waitForExpectedDevice(getPersistedMetadata().expectedSerial);
-    this.device = await this.createLoggedDevice();
-    await this.device.connect();
-    const product = await this.device.getVariable('product');
-    const serial = await this.device.getVariable('serialno');
-    const unlocked = await this.device.getVariable('unlocked');
+    const device = await this.getSessionDevice();
+    await device.connect();
+    const product = await device.getVariable('product');
+    const serial = await device.getVariable('serialno');
+    const unlocked = await device.getVariable('unlocked');
     if (product !== DEVICE_TARGET.codename || !reconnectSerialMatches(serial, getPersistedMetadata().expectedSerial)) {
       throw new WrongDeviceError();
     }
@@ -620,7 +716,12 @@ export class Installer {
 
   async downloadWormOs(): Promise<void> {
     try {
+      this.assertRealInstallerAllowed('downloadWormOs');
       await this.wakeLock.acquire();
+      if (this.mockMode) {
+        await this.downloadMockRelease();
+        return;
+      }
       const manifest = await fetchReleaseManifest(addLog);
       this.manifest = manifest;
       setRelease(manifest);
@@ -636,7 +737,20 @@ export class Installer {
         this.releaseBlob = null;
         this.verifiedSha256 = manifest.release.sha256;
         setVerifiedDigest(manifest.release.sha256);
-        transitionInstallerState('VERIFIED', 'Downloaded release found in persistent storage.');
+        setProgress(100);
+        setVerifyProgress({
+          state: 'verified',
+          verifiedBytes: cached.file.size,
+          totalBytes: cached.file.size,
+          percent: 100,
+          expectedSha256: manifest.release.sha256,
+          actualSha256: manifest.release.sha256,
+          metadataVerified: true,
+          fileAvailable: true,
+          fileSize: cached.file.size
+        });
+        addLog('VERIFY', 'Image already verified', undefined, 'VERIFY');
+        transitionInstallerState('VERIFIED', 'Image already verified ✓');
         await this.refreshFlashReadiness();
         return;
       }
@@ -659,6 +773,12 @@ export class Installer {
       setReleaseStorageState({ releaseComplete: true, releaseVerified: false, releaseFileAvailable: true });
       transitionInstallerState('DOWNLOADED', `Release ${manifest.release.id} downloaded.`);
     } catch (error) {
+      if (this.downloadAbortController?.signal.aborted) {
+        setReleaseStorageState({ releaseComplete: false, releaseVerified: false });
+        addLog('DOWNLOAD', 'Download paused', undefined, 'DOWNLOAD');
+        transitionInstallerState('DOWNLOAD_PAUSED', 'Download paused. Resume when ready.');
+        return;
+      }
       this.fail(error);
     } finally {
       this.downloadAbortController = null;
@@ -675,144 +795,242 @@ export class Installer {
 
   async verifyRelease(): Promise<void> {
     try {
-      await this.wakeLock.acquire();
-      const manifest = this.requireManifest();
-      const blob = this.requireReleaseBlob();
-      transitionInstallerState('VERIFYING', 'Verifying release SHA-256.');
-      if (manifest.release.size !== 0 && blob.size !== manifest.release.size) {
-        throw new ReleaseVerificationError('Release size does not match the manifest.');
+      this.assertRealInstallerAllowed('verifyRelease');
+      void this.wakeLock.acquire();
+      if (this.mockMode) {
+        await this.verifyMockRelease();
+        return;
       }
-      addLog('VERIFY', 'Image verification started', { bytes: blob.size }, 'VERIFY');
+      const manifest = this.requireManifest();
+      const key = releaseKey(manifest);
+      const metadata = await this.store.getMetadata(key);
+      const file = await this.store.getReleaseFile(manifest);
+      const fileAvailable = Boolean(file);
+      setVerifyProgress({
+        state: 'checking-cache',
+        verifiedBytes: 0,
+        totalBytes: manifest.release.size,
+        percent: 0,
+        expectedSha256: manifest.release.sha256,
+        actualSha256: null,
+        metadataVerified: Boolean(metadata?.verified),
+        fileAvailable,
+        fileSize: file?.size ?? null
+      });
+      if (!file) {
+        throw new ReleaseVerificationError('Release file is missing from persistent browser storage.');
+      }
+      if (file.size !== manifest.release.size) {
+        throw new ReleaseVerificationError(`Release file size mismatch: expected ${manifest.release.size} bytes, found ${file.size} bytes.`);
+      }
+
+      const metadataMatches =
+        metadata?.releaseId === manifest.release.id &&
+        metadata.device === manifest.device &&
+        metadata.expectedSha256 === manifest.release.sha256 &&
+        metadata.expectedSize === manifest.release.size;
+      if (metadataMatches && metadata.complete && metadata.verified && file.size === manifest.release.size) {
+        this.releaseBlob = null;
+        this.verifiedSha256 = manifest.release.sha256;
+        setVerifiedDigest(manifest.release.sha256);
+        setReleaseStorageState({ releaseComplete: true, releaseVerified: true, releaseFileAvailable: true });
+        setProgress(100);
+        setVerifyProgress({
+          state: 'verified',
+          verifiedBytes: file.size,
+          totalBytes: file.size,
+          percent: 100,
+          actualSha256: manifest.release.sha256,
+          metadataVerified: true,
+          fileAvailable: true,
+          fileSize: file.size
+        });
+        setDownloadProgress({
+          releaseId: manifest.release.id,
+          downloadedBytes: file.size,
+          totalBytes: manifest.release.size,
+          percent: 100,
+          storedLocally: true,
+          verified: true,
+          status: 'Image already verified ✓'
+        });
+        addLog('VERIFY', 'Image already verified', undefined, 'VERIFY');
+        transitionInstallerState('VERIFIED', 'Image already verified ✓');
+        await this.refreshFlashReadiness();
+        return;
+      }
+
+      transitionInstallerState('VERIFYING', 'Verifying image.');
+      setProgress(0);
+      setVerifyProgress({ state: 'verifying', verifiedBytes: 0, totalBytes: file.size, percent: 0 });
+      addLog('VERIFY', 'Image verification started', { bytes: file.size }, 'VERIFY');
       const startedAt = performance.now();
       const loggedMilestones = new Set<number>();
-      const digest = await assertSha256Matches(blob, manifest.release.sha256, (bytesVerified, percent) => {
-        for (const milestone of [50, 100]) {
+      let lastRenderedPercent = 0;
+      const digest = await sha256Blob(file, (bytesVerified, percent) => {
+        if (percent === 100 || percent - lastRenderedPercent >= 5) {
+          lastRenderedPercent = percent;
+          setProgress(percent);
+          setVerifyProgress({ verifiedBytes: bytesVerified, percent });
+          setStatusMessage(`Verifying image ${percent}%`);
+        }
+        for (const milestone of [25, 50, 75, 100]) {
           if (percent >= milestone && !loggedMilestones.has(milestone)) {
             loggedMilestones.add(milestone);
             addLog('VERIFY', `${milestone}%`, { bytesVerified, percent: milestone }, 'VERIFY');
           }
         }
       });
+      setVerifyProgress({ actualSha256: digest, verifiedBytes: file.size, percent: 100 });
+      if (digest !== manifest.release.sha256) {
+        throw new ReleaseVerificationError('Image verification failed.');
+      }
       this.verifiedSha256 = digest;
       setVerifiedDigest(digest);
-      const key = releaseKey(manifest);
-      await this.store.saveMetadata(key, metadataFromManifest(manifest, blob.size, true, true));
+      try {
+        await this.store.saveMetadata(key, metadataFromManifest(manifest, file.size, true, true));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new InstallerError(`Storage metadata save failed after verification: ${message}`);
+      }
       setDownloadProgress({
         releaseId: manifest.release.id,
-        downloadedBytes: blob.size,
+        downloadedBytes: file.size,
         totalBytes: manifest.release.size,
         percent: 100,
         storedLocally: true,
         verified: true,
-        status: 'Release SHA-256 verified.'
+        status: 'Image verified ✓'
       });
       setReleaseStorageState({ releaseComplete: true, releaseVerified: true, releaseFileAvailable: true });
       this.releaseBlob = null;
+      setProgress(100);
+      setVerifyProgress({ state: 'verified', metadataVerified: true, fileAvailable: true, fileSize: file.size });
       addLog('VERIFY', 'Image verified', { durationMs: Math.round(performance.now() - startedAt) }, 'VERIFY');
-      transitionInstallerState('VERIFIED', 'Release SHA-256 verified.');
+      transitionInstallerState('VERIFIED', 'Image verified ✓');
       await this.refreshFlashReadiness();
     } catch (error) {
       if (error instanceof ReleaseVerificationError && this.manifest) {
-        addLog('ERROR', 'Verification failed', { message: error.message }, 'VERIFY');
+        addLog('ERROR', 'Image verification failed', {
+          message: error.message,
+          expectedSha256: this.manifest.release.sha256,
+          actualSha256: getState().verify.actualSha256
+        }, 'VERIFY');
         const metadata = await this.store.getMetadata(releaseKey(this.manifest));
         if (metadata) {
-          await this.store.saveMetadata(releaseKey(this.manifest), { ...metadata, verified: false, updatedAt: new Date().toISOString() });
+          try {
+            await this.store.saveMetadata(releaseKey(this.manifest), { ...metadata, verified: false, updatedAt: new Date().toISOString() });
+          } catch (saveError) {
+            addLog('ERROR', 'Storage metadata save failed after verification error', { message: saveError instanceof Error ? saveError.message : String(saveError) }, 'VERIFY');
+          }
         }
       }
       setVerifiedDigest(null);
       setReleaseStorageState({ releaseVerified: false });
+      setVerifyProgress({ state: 'failed', metadataVerified: false });
       this.verifiedSha256 = null;
-      this.fail(error instanceof ReleaseVerificationError ? new ReleaseVerificationError() : error);
+      this.fail(error);
     } finally {
-      await this.wakeLock.release();
+      void this.wakeLock.release().catch(() => undefined);
     }
   }
 
   async flashWormOs(): Promise<void> {
     let flashFactoryZipStarted = false;
+    const attemptId = ++this.currentFlashAttemptId;
+    this.terminalFlashAttemptId = null;
     try {
+      this.assertRealInstallerAllowed('flashWormOs');
       await this.wakeLock.acquire();
       addLog('FLASH', 'Installation started', undefined, 'FLASH');
-      this.reconnectLogMessages.clear();
       if (this.destructiveOperation) {
         throw new InstallerError('Another destructive operation is already in progress.');
       }
       this.destructiveOperation = true;
-      if (!this.device) {
+      if (!this.fastbootSession.device) {
         throw new InstallerError('Pixel disconnected');
       }
       const device = this.requireDevice();
       const manifest = this.requireManifest();
       await this.assertFlashPreconditions(device);
       const blob = await this.reopenVerifiedReleaseFile(manifest);
+      this.assertFactoryFlashStartReady(device, manifest, blob);
       await this.assertNoActiveSnapshotUpdate(device);
       await this.assertZipWorkerAssetsReachable();
 
-      transitionInstallerState('FLASHING', 'Flashing Worm OS factory ZIP.');
+      transitionInstallerState('FLASHING', 'Flashing Worm OS.');
       await this.logFactoryZipPreflight(device, manifest, blob);
       addLog('ZIP', 'Preparing installation files', undefined, 'ZIP');
       setProgress(0);
       const flashStartedAt = performance.now();
-      const lastFlashProgress = new Map<string, number>();
       this.startFlashWatchdog();
       this.startZipWatchdog();
-      let zipOpenedLogged = false;
       try {
-        const flashFactoryZipPromise = device.flashFactoryZip(
-          blob,
-          true,
-          () => {
-            this.beginFlashReconnect();
-          },
-          (action, item, progress) => {
-            if (this.flashReconnectActive) {
-              this.flashReconnectActive = false;
-              this.clearFlashReconnectReminder();
-              transitionInstallerState('FLASHING', 'Installation resumed');
-              this.logReconnectOnce('Installation resumed');
+        this.factoryFlashActive = true;
+        const onProgress: FactoryFlashCallback = (action, item, progress) => {
+          if (!this.isActiveFlashAttempt(attemptId)) {
+            return;
+          }
+          const safeAction = action ?? 'prepare';
+          const safeItem = item ?? 'images';
+          const safeProgress = progress ?? null;
+          let resumedFromReconnect = false;
+          if (this.factoryWaitingForFlashResume) {
+            resumedFromReconnect = true;
+            this.factoryWaitingForFlashResume = false;
+            this.factoryReconnectPending = false;
+            this.reconnectBusy = false;
+            this.clearFlashReconnectReminder();
+            this.logReconnect('Installation resumed', this.reconnectSequence, { flashAttemptId: attemptId });
+            if (getState().installerState === 'WAITING_FOR_RECONNECT') {
+              transitionInstallerState('WAITING_FOR_FLASH_RESUME', 'Connection restored. Waiting for installation...');
             }
-            this.startFlashWatchdog();
-            this.startZipWatchdog();
-            this.flashWatchdog?.markProgress(action, item, progress);
-            this.zipWatchdog?.markActivity(action, item, progress);
-            if (!zipOpenedLogged && action === 'load' && item === 'package') {
-              zipOpenedLogged = true;
-              addLog('ZIP', 'Preparing installation files', undefined, 'ZIP');
-            }
-            const itemPercent = this.normalizeFactoryProgress(progress);
-            setFlashProgress({ operation: action, item, itemPercent, overallPercent: null, rawProgress: progress, overallIndeterminate: true });
-            if (action === 'unpack') {
+            transitionInstallerState('FLASHING', 'Installation resumed.');
+          }
+          this.startFlashWatchdog();
+          this.startZipWatchdog();
+          this.flashWatchdog?.markProgress(safeAction, safeItem, safeProgress);
+          this.zipWatchdog?.markActivity(safeAction, safeItem, safeProgress);
+          const lastOperation = this.formatFactoryOperation(safeAction, safeItem);
+          const activity = this.flashWatchdog?.snapshot() ?? this.lastFlashActivity;
+          this.lastFlashActivity = {
+            ...activity,
+            lastAction: safeAction,
+            lastItem: safeItem,
+            lastProgress: safeProgress,
+            lastOperation
+          };
+          const itemPercent = this.normalizeFactoryProgress(safeProgress);
+          if (itemPercent >= 100) {
+            this.lastFlashActivity = {
+              ...this.lastFlashActivity,
+              lastSuccessfulOperation: lastOperation
+            };
+          }
+          setFlashProgress({ operation: safeAction, item: safeItem, itemPercent, overallPercent: null, rawProgress: safeProgress, overallIndeterminate: true });
+          if (!resumedFromReconnect) {
+            if (safeAction === 'unpack' || safeAction === 'prepare') {
               setStatusMessage('Preparing installation files...');
             } else {
-              setStatusMessage(this.userVisibleFactoryStatus(action, item));
-            }
-            const key = `${action}:${item ?? ''}`;
-            const bucket = Math.min(100, Math.floor(itemPercent / 25) * 25);
-            const lastBucket = lastFlashProgress.get(key);
-            if (item === 'avb_custom_key') {
-              addLog('FLASH', 'Verified Boot key', undefined, 'FLASH');
-            }
-            if (action === 'unpack') {
-              if (lastBucket === undefined) {
-                addLog('ZIP', `Preparing ${item ?? 'item'}`, { item }, 'ZIP');
-              }
-              if (lastBucket === undefined || bucket > lastBucket || itemPercent === 100) {
-                lastFlashProgress.set(key, bucket);
-              }
-            } else {
-              if (lastBucket === undefined || bucket > lastBucket || itemPercent === 100) {
-                lastFlashProgress.set(key, bucket);
-                addLog('FLASH', `Flashing ${item ?? 'item'} ${bucket}%`, { action, item, percent: bucket }, 'FLASH');
-              }
+              setStatusMessage(this.userVisibleFactoryStatus(safeAction, safeItem));
             }
           }
-        );
+        };
+        this.assertFactoryFlashCallbacks(() => undefined, onProgress);
+        addLog('ZIP', 'Preparing images', undefined, 'ZIP');
+        const plan = await buildFlashPlan(blob, manifest.release.id);
+        addLog('FLASH', 'Final ordered flash plan', { plan: formatFlashPlan(plan), requiredFiles: plan.requiredFiles }, 'FLASH');
         flashFactoryZipStarted = true;
-        await flashFactoryZipPromise;
+        await this.executeFlashPlan(device, blob, plan, attemptId, onProgress);
       } finally {
+        this.factoryFlashActive = false;
         this.stopWatchdogs();
       }
 
+      if (!this.isActiveFlashAttempt(attemptId)) {
+        return;
+      }
+      this.terminalFlashAttemptId = attemptId;
       setProgress(100);
       addLog('FLASH', 'Installation complete', { durationMs: Math.round(performance.now() - flashStartedAt) }, 'FLASH');
       transitionInstallerState('FLASH_COMPLETE', 'Factory ZIP flash completed.');
@@ -820,14 +1038,15 @@ export class Installer {
     } catch (error) {
       const originalMessage = userMessageForError(error);
       const maskFlashError = flashFactoryZipStarted && originalMessage !== 'ZIP decompression worker stopped responding.';
-      const message = maskFlashError ? 'Installation stopped.' : originalMessage;
-      if (message !== originalMessage) {
-        addLog('ERROR', originalMessage, undefined, 'FLASH');
+      this.terminalFlashAttemptId = attemptId;
+      if (flashFactoryZipStarted) {
+        this.logFactoryFlashError(error);
       }
+      const message = maskFlashError ? 'Installation stopped.' : originalMessage;
       if (flashFactoryZipStarted) {
         this.clearPendingFlashReconnect();
       }
-      this.fail(maskFlashError ? new InstallerError(message) : error);
+      this.fail(error, message);
     } finally {
       this.endFlashReconnect();
       this.stopWatchdogs();
@@ -837,20 +1056,17 @@ export class Installer {
   }
 
   async reconnectManual(): Promise<void> {
-    if (this.flashReconnectActive) {
-      try {
-        await this.manualReconnectDuringFlash();
-      } catch (error) {
-        this.fail(error);
-      }
+    this.assertRealInstallerAllowed('reconnectManual');
+    if (this.factoryFlashActive || this.factoryReconnectPending) {
+      await this.manualReconnectDuringFlash();
       return;
     }
     try {
       transitionInstallerState('CONNECTING', 'Reconnecting Pixel...');
       const manager = this.createReconnectManager(requireWebUsb());
       await manager.requestExpectedDevice(getPersistedMetadata().expectedSerial);
-      this.device = await this.createLoggedDevice();
-      await this.device.connect();
+      const device = await this.getSessionDevice();
+      await device.connect();
       transitionInstallerState('CONNECTED', 'Pixel connected.');
       await this.verifyConnectedDevice();
     } catch (error) {
@@ -859,7 +1075,8 @@ export class Installer {
   }
 
   async clearDownloadedRelease(): Promise<void> {
-    if (this.destructiveOperation || ['FLASHING', 'WAITING_FOR_RECONNECT', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'].includes(getState().installerState)) {
+    this.assertRealInstallerAllowed('clearDownloadedRelease');
+    if (this.destructiveOperation || ['FLASHING', 'WAITING_FOR_RECONNECT', 'WAITING_FOR_FLASH_RESUME', 'RECONNECTING', 'WAITING_MANUAL_RECONNECT'].includes(getState().installerState)) {
       setStatusMessage('Installation is active. Clear Release is disabled.');
       addLog('WARN', 'Clear Release blocked during active installation', undefined, 'DOWNLOAD');
       return;
@@ -878,9 +1095,10 @@ export class Installer {
 
   async lockBootloader(): Promise<void> {
     try {
+      this.assertRealInstallerAllowed('lockBootloader');
       addLog('BOOTLOADER', 'Lock requested', undefined, 'BOOTLOADER');
       if (!this.canLockBootloader()) {
-        throw new InstallerError('Bootloader lock is available only after a complete verified Worm OS installation.');
+        throw new InstallerError('Bootloader lock is available only after a complete verified installation.');
       }
       if (!getState().lockAcknowledged) {
         addLog('WARN', 'Lock cancelled: acknowledgement missing');
@@ -893,6 +1111,13 @@ export class Installer {
 
       transitionInstallerState('LOCKING', 'Starting bootloader lock.');
       await device.runCommand('flashing lock');
+      if (this.mockMode) {
+        const unlocked = await device.getVariable('unlocked');
+        setDeviceInfo({ bootloader: normalizeUnlockedState(unlocked) === 'no' ? 'Locked' : 'Unknown' });
+        transitionInstallerState('LOCKED', 'Bootloader lock verified.');
+        addLog('BOOTLOADER', 'Lock complete', { unlocked }, 'BOOTLOADER');
+        return;
+      }
       addLog('WARN', 'Waiting physical confirmation');
       transitionInstallerState('WAITING_USER_LOCK', 'Confirm bootloader lock on the Pixel using the physical buttons.');
       await this.reconnectAfterLock();
@@ -906,6 +1131,7 @@ export class Installer {
 
   async rebootPixel(): Promise<void> {
     try {
+      this.assertRealInstallerAllowed('rebootPixel');
       if (getState().installerState !== 'LOCKED') {
         throw new InstallerError('Final reboot is available only after bootloader lock handling has completed safely.');
       }
@@ -916,8 +1142,8 @@ export class Installer {
       await device.reboot();
       this.disposeReconnectManager();
       setProgress(100);
-      transitionInstallerState('COMPLETE', 'Worm OS installation complete.');
-      addLog('COMPLETE', 'Worm OS installation complete', {
+      transitionInstallerState('COMPLETE', 'Installation complete.');
+      addLog('COMPLETE', 'Installation complete', {
         session: getState().sessionId,
         release: getState().release?.release.id,
         device: getState().deviceInfo.product
@@ -964,7 +1190,7 @@ export class Installer {
       addLog('FLASH', `Flash blocked: ${reason}`, undefined, 'FLASH');
     }
     if (prerequisites.releaseVerified && !prerequisites.deviceConnected) {
-      setStatusMessage('Release verified. Reconnect Pixel to continue.');
+      setStatusMessage('Image verified ✓ Reconnect your device to continue.');
     }
     return prerequisites;
   }
@@ -994,7 +1220,7 @@ export class Installer {
     setReleaseStorageState({ releaseComplete, releaseVerified, releaseFileAvailable });
 
     return {
-      deviceConnected: Boolean(this.device && state.deviceInfo.serial !== 'Not connected'),
+      deviceConnected: Boolean(this.fastbootSession.device && state.deviceInfo.serial !== 'Not connected'),
       productVerified: state.deviceInfo.product === DEVICE_TARGET.codename,
       serialVerified: reconnectSerialMatches(state.deviceInfo.serial, expectedSerial),
       bootloaderUnlocked: isUnlockedDeviceInfo(state.deviceInfo.bootloader),
@@ -1048,6 +1274,150 @@ state=${prerequisites.installerState}`,
     return Math.min(100, Math.max(0, Math.round(progress)));
   }
 
+  private isActiveFlashAttempt(attemptId: number): boolean {
+    return this.currentFlashAttemptId === attemptId && this.terminalFlashAttemptId !== attemptId;
+  }
+
+  private assertFactoryFlashStartReady(device: FastbootDeviceLike, manifest: ReleaseManifest, file: File): void {
+    if (!this.fastbootSession) {
+      throw new InstallerError('Fastboot session is unavailable.');
+    }
+    if (!this.fastbootSession.device) {
+      throw new InstallerError('Fastboot device instance is unavailable.');
+    }
+    if (this.fastbootSession.device !== device) {
+      throw new InstallerError('Fastboot device instance changed before factory flash.');
+    }
+    if (!device.device) {
+      throw new InstallerError('Fastboot USB device handle is unavailable.');
+    }
+    if (!(file instanceof Blob)) {
+      throw new InstallerError('Verified release file is not a Blob.');
+    }
+    if (file.size <= 0 && manifest.release.size > 0) {
+      throw new InstallerError('Verified release file is empty.');
+    }
+    if (file.size !== manifest.release.size) {
+      throw new InstallerError('Release file size does not match the manifest. Flash stopped before writing.');
+    }
+    if (!manifest.release || typeof manifest.release.id !== 'string') {
+      throw new InstallerError('Release manifest details are unavailable.');
+    }
+    if (!this.isRuntimeReleaseVerified()) {
+      throw new InstallerError('Release verification metadata is missing');
+    }
+    if (typeof device.flashFactoryZip !== 'function') {
+      throw new InstallerError('Fastboot factory ZIP flash function is unavailable.');
+    }
+    if (!ZIP_WORKER_CONFIGURATION?.workerScripts?.inflate?.length) {
+      throw new InstallerError('ZIP worker configuration is unavailable.');
+    }
+  }
+
+  private assertFactoryFlashCallbacks(onReconnect: ReconnectCallback, onProgress: FactoryFlashCallback): void {
+    if (typeof onReconnect !== 'function') {
+      throw new InstallerError('Factory flash reconnect callback is unavailable.');
+    }
+    if (typeof onProgress !== 'function') {
+      throw new InstallerError('Factory flash progress callback is unavailable.');
+    }
+  }
+
+  private errorDiagnostics(error: unknown): Record<string, unknown> {
+    const errorObject = error instanceof Error ? error : null;
+    const errorRecord = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+    return {
+      errorName: errorObject?.name ?? typeof error,
+      errorMessage: errorObject?.message ?? String(error),
+      errorConstructorName: errorObject?.constructor?.name ?? typeof error,
+      errorStack: errorObject?.stack ?? null,
+      fastbootStatus: typeof errorRecord.status === 'string' ? errorRecord.status : null,
+      bootloaderMessage: typeof errorRecord.bootloaderMessage === 'string' ? errorRecord.bootloaderMessage : null
+    };
+  }
+
+  private logFactoryFlashError(error: unknown): void {
+    const diagnostics = this.errorDiagnostics(error);
+    const activity = this.flashWatchdog?.snapshot() ?? this.lastFlashActivity;
+    const lastAction = activity.lastAction ?? getState().flash?.operation ?? null;
+    const lastItem = activity.lastItem ?? getState().flash?.item ?? null;
+    const lastOperation = activity.lastOperation ?? this.formatFactoryOperation(lastAction, lastItem);
+    const details = {
+      ...diagnostics,
+      installerState: getState().installerState,
+      factoryFlashActive: this.factoryFlashActive,
+      action: lastAction,
+      item: lastItem,
+      lastAction,
+      lastItem,
+      lastProgress: activity.lastProgress ?? getState().flash?.rawProgress ?? null,
+      lastOperation,
+      lastSuccessfulOperation: activity.lastSuccessfulOperation ?? null,
+      reconnectSequence: this.reconnectSequence
+    };
+    addLog('ERROR', 'Factory flash error', details, 'FLASH');
+    addLog('ERROR', 'Factory flash stack', { stack: diagnostics.errorStack ?? '-' }, 'FLASH');
+  }
+
+  private formatFactoryOperation(action: string | null | undefined, item: string | null | undefined): string | null {
+    if (!action) {
+      return null;
+    }
+    if (action === 'flash' && item === 'radio') {
+      return 'radio';
+    }
+    if (action === 'reboot' && item === 'bootloader') {
+      return 'reboot-bootloader after radio';
+    }
+    if (action === 'flash' && item === 'avb_custom_key') {
+      return 'avb_custom_key';
+    }
+    if (action === 'oem' && item === 'uart disable') {
+      return 'uart disable';
+    }
+    if ((action === 'erase' || action === 'wipe') && (item === 'dpm_a' || item === 'dpm_b')) {
+      return 'dpm erase';
+    }
+    if ((action === 'update' || action === 'check') && item === 'android-info') {
+      return 'android-info check';
+    }
+    if (action === 'snapshot-update' && item === 'cancel') {
+      return 'snapshot cancel';
+    }
+    if (action === 'flash' && item && /^(boot|dtbo|vendor_boot|vendor_kernel_boot|init_boot)(?:_[ab])?(?:\.img)?$/.test(item)) {
+      return 'boot images';
+    }
+    if ((action === 'erase' || action === 'wipe') && item === 'userdata') {
+      return 'userdata erase';
+    }
+    if ((action === 'erase' || action === 'wipe') && item === 'metadata') {
+      return 'metadata erase';
+    }
+    const superMatch = item?.match(/^super(?:[_ -](\d+))?(?:\.img)?$/);
+    if (action === 'flash' && superMatch) {
+      return `super ${superMatch[1] ?? '?'}/16`;
+    }
+    if (action === 'wipe' && item === 'super') {
+      return 'wipe-super';
+    }
+    if (action === 'wipe' && item === 'data') {
+      return 'wipe-data';
+    }
+    if (action === 'reboot') {
+      return item ? `reboot ${item}` : 'reboot';
+    }
+    if (action === 'flash') {
+      return item ? `flash ${item}` : 'flash';
+    }
+    if (action === 'unpack') {
+      return item ? `unpack ${item}` : 'unpack';
+    }
+    if (action === 'load') {
+      return item ? `load ${item}` : 'load';
+    }
+    return item ? `${action} ${item}` : action;
+  }
+
   private async getOptionalVariable(device: FastbootDeviceLike, name: string): Promise<string | null> {
     try {
       return (await device.getVariable(name)) ?? null;
@@ -1095,6 +1465,9 @@ state=${prerequisites.installerState}`,
   }
 
   private async assertZipWorkerAssetsReachable(): Promise<void> {
+    if (this.mockMode) {
+      return;
+    }
     clearZipWorkerFailure();
     const checks = [
       { label: 'worker', url: ZIP_INFLATE_WORKER_URL },
@@ -1133,6 +1506,10 @@ state=${prerequisites.installerState}`,
       setReleaseStorageState({ releaseFileAvailable: false });
       throw new InstallerError('Verified release file is missing');
     }
+    if (!(file instanceof Blob)) {
+      setReleaseStorageState({ releaseFileAvailable: false });
+      throw new InstallerError('Verified release file is not a Blob.');
+    }
     if (file.size !== manifest.release.size || metadata.downloadedBytes !== manifest.release.size) {
       setReleaseStorageState({ releaseComplete: false });
       throw new InstallerError('Release file size does not match verified metadata');
@@ -1159,27 +1536,166 @@ state=${prerequisites.installerState}`,
     transitionInstallerState('LOCK_READY', 'Ready to lock bootloader.');
   }
 
-  private async completeReconnectDuringFlash(device: FastbootDeviceLike): Promise<void> {
+  private async executeFlashPlan(
+    device: FastbootDeviceLike,
+    packageBlob: Blob,
+    plan: FlashPlan,
+    attemptId: number,
+    onProgress: FactoryFlashCallback
+  ): Promise<void> {
+    const outer = await openZipEntries(packageBlob);
+    const nestedCache = new Map<string, { reader: Awaited<ReturnType<typeof openZipEntries>>['reader']; entries: Awaited<ReturnType<typeof openZipEntries>>['entries'] }>();
     try {
-      await this.assertConnectedPixel(device);
-      this.logReconnectOnce('Pixel reconnected');
-      if (getState().installerState === 'WAITING_FOR_RECONNECT') {
-        transitionInstallerState('FLASHING', 'Resuming installation...');
+      for (let index = 0; index < plan.steps.length; index += 1) {
+        if (!this.isActiveFlashAttempt(attemptId)) {
+          return;
+        }
+        updatePersistedMetadata({ flashStepIndex: index });
+        const step = plan.steps[index];
+        await this.assertConnectedPixel(device);
+        await this.executeFlashPlanStep(device, outer.entries, nestedCache, step, attemptId, onProgress);
       }
-    } catch (error) {
-      this.fail(error);
+      updatePersistedMetadata({ flashStepIndex: plan.steps.length });
+    } finally {
+      await outer.reader.close();
+      for (const nested of nestedCache.values()) {
+        await nested.reader.close();
+      }
     }
   }
 
+  private async executeFlashPlanStep(
+    device: FastbootDeviceLike,
+    outerEntries: Awaited<ReturnType<typeof openZipEntries>>['entries'],
+    nestedCache: Map<string, Awaited<ReturnType<typeof openZipEntries>>>,
+    step: FlashPlanStep,
+    attemptId: number,
+    onProgress: FactoryFlashCallback
+  ): Promise<void> {
+    const commandLabel = this.flashPlanCommandLabel(step);
+    try {
+      if (step.type === 'command') {
+        onProgress(step.action, step.item, 0);
+        if (step.command === 'check:android-info.zip') {
+          await readEntryBlob(outerEntries, 'android-info.zip');
+          addLog('FASTBOOT', 'android-info.zip requirements checked', { command: step.command }, 'FASTBOOT');
+          onProgress(step.action, step.item, 1);
+          return;
+        }
+        addLog('FASTBOOT', `fastboot ${step.command}`, { command: step.command }, 'FASTBOOT');
+        await device.runCommand(step.command);
+        onProgress(step.action, step.item, 1);
+        return;
+      }
+      if (step.type === 'erase') {
+        onProgress('erase', step.item, 0);
+        addLog('FASTBOOT', `fastboot erase ${step.partition}`, { command: `erase:${step.partition}` }, 'FASTBOOT');
+        await device.runCommand(`erase:${step.partition}`);
+        onProgress('erase', step.item, 1);
+        return;
+      }
+      if (step.type === 'reboot') {
+        onProgress('reboot', step.item, 0);
+        addLog('RECONNECT', `reboot ${step.target}`, { target: step.target }, 'RECONNECT');
+        await device.reboot(step.target, true, () => this.beginFlashReconnect(attemptId));
+        await this.assertConnectedPixel(device);
+        onProgress('reboot', step.item, 1);
+        return;
+      }
+
+      const entries = step.source === 'nested' && step.nestedZip ? await this.getNestedEntries(outerEntries, nestedCache, step.nestedZip) : outerEntries;
+      onProgress('unpack', step.item, 0);
+      addLog('ZIP', `Preparing ${step.item}`, { filename: step.filename }, 'ZIP');
+      const imageBlob = await readEntryBlob(entries, step.filename);
+      onProgress('unpack', step.item, 1);
+      onProgress('flash', step.item, 0);
+      if (step.partition === 'avb_custom_key') {
+        addLog('FLASH', 'Verified Boot key', undefined, 'FLASH');
+      }
+      if (step.partition === 'radio') {
+        addLog('FLASH', 'radio start', { flashAttemptId: attemptId }, 'FLASH');
+      }
+      await device.flashBlob(step.partition, imageBlob, (progress) => {
+        onProgress('flash', step.item, progress);
+        const percent = this.normalizeFactoryProgress(progress);
+        if (percent === 25 || percent === 50 || percent === 75 || percent === 100) {
+          addLog('FLASH', `Flashing ${step.item} ${percent}%`, { partition: step.partition, filename: step.filename, percent }, 'FLASH');
+          if (step.partition === 'radio') addLog('FLASH', `radio ${percent}%`, { percent, flashAttemptId: attemptId }, 'FLASH');
+        }
+      });
+      if (step.partition === 'radio') {
+        addLog('FLASH', 'radio complete', { flashAttemptId: attemptId }, 'FLASH');
+      }
+    } catch (error) {
+      addLog('ERROR', 'Fastboot command failed', {
+        stage: getState().installerState,
+        command: commandLabel,
+        response: this.errorDiagnostics(error)
+      }, 'FASTBOOT');
+      throw error;
+    }
+  }
+
+  private async getNestedEntries(
+    outerEntries: Awaited<ReturnType<typeof openZipEntries>>['entries'],
+    nestedCache: Map<string, Awaited<ReturnType<typeof openZipEntries>>>,
+    nestedZip: string
+  ): Promise<Awaited<ReturnType<typeof openZipEntries>>['entries']> {
+    const cached = nestedCache.get(nestedZip);
+    if (cached) return cached.entries;
+    const blob = await readEntryBlob(outerEntries, nestedZip);
+    const opened = await openZipEntries(blob);
+    nestedCache.set(nestedZip, opened);
+    return opened.entries;
+  }
+
+  private flashPlanCommandLabel(step: FlashPlanStep): string {
+    if (step.type === 'flash') return `flash ${step.partition} ${step.filename}`;
+    if (step.type === 'erase') return `erase ${step.partition}`;
+    if (step.type === 'reboot') return `reboot ${step.target}`;
+    return step.command;
+  }
+
   private async manualReconnectDuringFlash(): Promise<void> {
+    if (!this.factoryReconnectPending) {
+      setStatusMessage('Installation is running. Reconnect Pixel is disabled until the Pixel restarts.');
+      return;
+    }
+    if (this.reconnectBusy) {
+      setStatusMessage('Connection restored. Waiting for installation...');
+      return;
+    }
+    const attemptId = this.currentFlashAttemptId;
+    if (!this.isActiveFlashAttempt(attemptId)) {
+      return;
+    }
     const device = this.requireDevice();
-    this.logReconnectOnce('Reconnect Device selected');
+    const sequence = this.reconnectSequence;
+    this.logReconnect('Reconnect Pixel clicked', sequence, { flashAttemptId: attemptId });
+    this.logReconnect('connect() start', sequence, { flashAttemptId: attemptId });
+    this.factoryWaitingForFlashResume = true;
+    this.reconnectBusy = true;
     try {
       await device.connect();
-      await this.assertConnectedPixel(device);
-      this.logReconnectOnce('Pixel reconnected');
-      transitionInstallerState('FLASHING', 'Resuming installation...');
+      if (!this.isActiveFlashAttempt(attemptId)) {
+        return;
+      }
+      this.logReconnect('connect() success', sequence, { flashAttemptId: attemptId });
+      if (this.factoryWaitingForFlashResume && this.reconnectSequence === sequence && this.isActiveFlashAttempt(attemptId)) {
+        this.clearFlashReconnectReminder();
+        addLog('FLASH', 'waiting for next callback', { flashAttemptId: attemptId, reconnectSequence: sequence }, 'FLASH');
+        if (getState().installerState === 'WAITING_FOR_RECONNECT') {
+          transitionInstallerState('WAITING_FOR_FLASH_RESUME', 'Connection restored. Waiting for installation...');
+        } else {
+          setStatusMessage('Connection restored. Waiting for installation...');
+        }
+      }
     } catch (error) {
+      this.factoryWaitingForFlashResume = false;
+      this.reconnectBusy = false;
+      const message = userMessageForError(error);
+      addLog('ERROR', 'Fastboot reconnect failed', { reconnectSequence: sequence, lastConnectError: message }, 'RECONNECT');
+      setStatusMessage('Reconnect failed. Keep the Pixel connected and tap Reconnect again.');
       if (isDeviceSelectionCancelled(error)) {
         setStatusMessage('Reconnect the Pixel to continue installation.');
         return;
@@ -1188,29 +1704,38 @@ state=${prerequisites.installerState}`,
         setStatusMessage('Different Pixel detected. Reconnect the original device.');
         return;
       }
-      throw error;
     }
   }
 
-  private beginFlashReconnect(): void {
-    if (this.flashReconnectActive) {
+  private beginFlashReconnect(attemptId: number): void {
+    if (!this.isActiveFlashAttempt(attemptId)) {
       return;
     }
-    this.flashReconnectActive = true;
+    this.reconnectSequence += 1;
+    const sequence = this.reconnectSequence;
+    this.factoryReconnectPending = true;
+    this.factoryWaitingForFlashResume = false;
+    this.reconnectBusy = false;
     this.disposeReconnectManager();
     this.stopWatchdogs();
-    this.logReconnectOnce('Pixel restarted');
-    this.logReconnectOnce('Waiting for reconnect');
-    transitionInstallerState('WAITING_FOR_RECONNECT', 'Reconnect the Pixel to continue installation.');
+    this.logReconnect('requested after radio', sequence, { factoryFlashActive: true, factoryReconnectPending: true, flashAttemptId: attemptId, lastItem: this.lastFlashActivity.lastItem });
+    this.logReconnect('waiting for manual click', sequence, { factoryFlashActive: true, factoryReconnectPending: true, flashAttemptId: attemptId });
+    this.logReconnect('Pixel restarted', sequence, { factoryFlashActive: true, factoryReconnectPending: true, flashAttemptId: attemptId });
+    this.logReconnect('Waiting for manual reconnect', sequence, { factoryFlashActive: true, factoryReconnectPending: true, flashAttemptId: attemptId });
+    transitionInstallerState('WAITING_FOR_RECONNECT', 'Pixel restarted into bootloader.');
+    setStatusMessage('Pixel restarted into bootloader.');
     this.flashReconnectReminder = globalThis.setTimeout(() => {
-      if (this.flashReconnectActive && getState().installerState === 'WAITING_FOR_RECONNECT') {
+      if (this.isActiveFlashAttempt(attemptId) && this.factoryReconnectPending && this.reconnectSequence === sequence && getState().installerState === 'WAITING_FOR_RECONNECT') {
         setStatusMessage('Still waiting for the Pixel.');
       }
-    }, 30_000);
+    }, 60_000);
   }
 
   private endFlashReconnect(): void {
-    this.flashReconnectActive = false;
+    this.factoryFlashActive = false;
+    this.factoryReconnectPending = false;
+    this.factoryWaitingForFlashResume = false;
+    this.reconnectBusy = false;
     this.clearFlashReconnectReminder();
   }
 
@@ -1222,7 +1747,7 @@ state=${prerequisites.installerState}`,
   }
 
   private startFlashWatchdog(): void {
-    if (this.flashReconnectActive || this.flashWatchdog) {
+    if (this.factoryReconnectPending || this.flashWatchdog) {
       return;
     }
     this.flashWatchdog = new FlashActivityWatchdog(
@@ -1232,7 +1757,7 @@ state=${prerequisites.installerState}`,
   }
 
   private startZipWatchdog(): void {
-    if (this.flashReconnectActive || this.zipWatchdog) {
+    if (this.factoryReconnectPending || this.zipWatchdog) {
       return;
     }
     this.zipWatchdog = new ZipUnpackWatchdog(
@@ -1248,12 +1773,8 @@ state=${prerequisites.installerState}`,
     this.zipWatchdog = null;
   }
 
-  private logReconnectOnce(message: string, details?: unknown): void {
-    if (this.reconnectLogMessages.has(message)) {
-      return;
-    }
-    this.reconnectLogMessages.add(message);
-    addLog('RECONNECT', message, details, 'RECONNECT');
+  private logReconnect(message: string, reconnectSequence?: number, details?: Record<string, unknown>): void {
+    addLog('RECONNECT', message, reconnectSequence ? { ...details, reconnectSequence } : details, 'RECONNECT');
   }
 
   private clearPendingFlashReconnect(): void {
@@ -1274,14 +1795,24 @@ state=${prerequisites.installerState}`,
 
   private userVisibleFactoryStatus(action: string, item: string | null): string {
     const visibleItem = item === 'avb_custom_key' ? 'Verified Boot key' : item;
+    const superMatch = item?.match(/^super(?:[_ -](\d+))?(?:\.img)?$/);
     if (action === 'load' && item === 'package') {
       return 'Loading installation package...';
     }
+    if (action === 'unpack' && item === 'images') {
+      return 'Preparing images...';
+    }
     if (action === 'reboot') {
-      return visibleItem ? `Rebooting ${visibleItem}...` : 'Rebooting Pixel...';
+      return visibleItem ? `Restarting ${visibleItem}...` : 'Restarting Pixel...';
     }
     if (action === 'wipe') {
       return visibleItem ? `Wiping ${visibleItem}...` : 'Wiping data...';
+    }
+    if (action === 'flash' && item === 'avb_custom_key') {
+      return 'Installing Verified Boot key...';
+    }
+    if (action === 'flash' && superMatch) {
+      return `Flashing super ${superMatch[1] ?? '?'}/16...`;
     }
     if (action === 'flash') {
       return visibleItem ? `Flashing ${visibleItem}...` : 'Flashing...';
@@ -1323,11 +1854,11 @@ state=${prerequisites.installerState}`,
   private async reconnectAfterLock(): Promise<void> {
     const manager = this.createReconnectManager(requireWebUsb());
     await manager.waitForExpectedDevice(getPersistedMetadata().expectedSerial);
-    this.device = await (this.dependencies.createDevice?.() ?? createFastbootDevice());
-    await this.device.connect();
-    const product = await this.device.getVariable('product');
-    const serial = await this.device.getVariable('serialno');
-    const unlocked = await this.device.getVariable('unlocked');
+    const device = await this.getSessionDevice();
+    await device.connect();
+    const product = await device.getVariable('product');
+    const serial = await device.getVariable('serialno');
+    const unlocked = await device.getVariable('unlocked');
     if (product !== DEVICE_TARGET.codename || !reconnectSerialMatches(serial, getPersistedMetadata().expectedSerial)) {
       throw new WrongDeviceError();
     }
@@ -1367,8 +1898,13 @@ state=${prerequisites.installerState}`,
   }
 
   private async createLoggedDevice(): Promise<FastbootDeviceLike> {
+    this.assertRealInstallerAllowed('createLoggedDevice');
     const raw = await (this.dependencies.createDevice?.() ?? createFastbootDevice());
     return this.wrapFastbootDevice(raw);
+  }
+
+  private async getSessionDevice(): Promise<FastbootDeviceLike> {
+    return this.fastbootSession.getDevice();
   }
 
   private patchUsbTransferLogging(usbDevice: USBDevice): void {
@@ -1456,33 +1992,22 @@ state=${prerequisites.installerState}`,
         await device.reboot(target, wait, onReconnect);
         this.flashWatchdog?.markFastbootActivity();
       },
+      flashBlob: async (partition: string, blob: Blob, onProgress?: (progress: number) => void) => {
+        this.flashWatchdog?.markFastbootActivity();
+        await device.flashBlob(partition, blob, onProgress);
+        this.flashWatchdog?.markFastbootActivity();
+      },
       flashFactoryZip: async (blob: Blob, wipe: boolean, onReconnect: ReconnectCallback, onProgress?: FactoryFlashCallback) => {
-        const originalWaitForConnect = device.waitForConnect.bind(device);
-        device.waitForConnect = async (callback?: ReconnectCallback) => {
-          let reconnectRequest: Promise<void> | null = null;
-          await originalWaitForConnect(() => {
-            const result = callback?.();
-            reconnectRequest = Promise.resolve(result);
-          });
-          if (reconnectRequest) {
-            await reconnectRequest;
-          }
-          await this.completeReconnectDuringFlash(device);
-        };
-        try {
-          await device.flashFactoryZip(blob, wipe, onReconnect, onProgress);
-        } finally {
-          device.waitForConnect = originalWaitForConnect;
-        }
+        await device.flashFactoryZip(blob, wipe, onReconnect, onProgress);
       }
     };
   }
 
   private requireDevice(): FastbootDeviceLike {
-    if (!this.device) {
+    if (!this.fastbootSession.device) {
       throw new InstallerError('No Pixel is connected.');
     }
-    return this.device;
+    return this.fastbootSession.device;
   }
 
   private requireManifest(): ReleaseManifest {
@@ -1493,19 +2018,26 @@ state=${prerequisites.installerState}`,
       }
     }
     if (!this.manifest) {
-      throw new InstallerError('No Worm OS release manifest is loaded.');
+      throw new InstallerError('No installation image manifest is loaded.');
     }
     return this.manifest;
   }
 
   private requireReleaseBlob(): Blob {
     if (!this.releaseBlob) {
-      throw new InstallerError('No Worm OS release has been downloaded.');
+      throw new InstallerError('No installation image has been downloaded.');
     }
     return this.releaseBlob;
   }
 
+  private assertRealInstallerAllowed(operation: string): void {
+    if (isTestMode()) {
+      throw new InstallerError(`Blocked real installer operation during Test Installer mode: ${operation}`);
+    }
+  }
+
   private async restoreStoredReleaseState(): Promise<void> {
+    this.assertRealInstallerAllowed('restoreStoredReleaseState');
     try {
       const manifest = await fetchReleaseManifest(addLog);
       this.manifest = manifest;
@@ -1523,18 +2055,92 @@ state=${prerequisites.installerState}`,
         this.releaseBlob = null;
         this.verifiedSha256 = manifest.release.sha256;
         setVerifiedDigest(manifest.release.sha256);
-        transitionInstallerState('VERIFIED', 'Downloaded release found in persistent storage.');
+        setProgress(100);
+        setVerifyProgress({
+          state: 'verified',
+          verifiedBytes: cached.file.size,
+          totalBytes: manifest.release.size,
+          percent: 100,
+          expectedSha256: manifest.release.sha256,
+          actualSha256: manifest.release.sha256,
+          metadataVerified: true,
+          fileAvailable: true,
+          fileSize: cached.file.size
+        });
+        addLog('VERIFY', 'Image already verified', undefined, 'VERIFY');
+        transitionInstallerState('VERIFIED', 'Image already verified ✓');
         await this.refreshFlashReadiness();
       } else if (cached.complete) {
         this.releaseBlob = cached.file;
         transitionInstallerState('DOWNLOADED', 'Release already downloaded.');
       } else if (cached.file.size > 0) {
-        setStatusMessage('Partial Worm OS release found.');
-        addLog('info', 'Partial Worm OS release found.');
+        setStatusMessage('Partial installation image found.');
+        addLog('info', 'Partial installation image found.');
       }
     } catch (error) {
       addLog('DEBUG', `Stored release check skipped: ${userMessageForError(error)}`);
     }
+  }
+
+  private async restoreMockReleaseState(): Promise<void> {
+    const { MOCK_RELEASE_MANIFEST } = await this.getMockDeviceModule();
+    this.manifest = MOCK_RELEASE_MANIFEST;
+    setRelease(MOCK_RELEASE_MANIFEST);
+    setCacheKey(releaseKey(MOCK_RELEASE_MANIFEST));
+    setReleaseStorageState({ releaseComplete: false, releaseVerified: false, releaseFileAvailable: false });
+    addLog('INFO', 'Mock Pixel test mode active', undefined, 'DEVICE');
+  }
+
+  private async downloadMockRelease(): Promise<void> {
+    const { MOCK_RELEASE_MANIFEST, mockDownloadProgress, saveMockRelease } = await this.getMockDeviceModule();
+    this.manifest = MOCK_RELEASE_MANIFEST;
+    setRelease(MOCK_RELEASE_MANIFEST);
+    setCacheKey(releaseKey(MOCK_RELEASE_MANIFEST));
+    transitionInstallerState('DOWNLOADING', 'Downloading mock release.');
+    for (const percent of [0, 25, 50, 75, 100]) {
+      const progress = mockDownloadProgress(percent);
+      setDownloadProgress(progress);
+      setProgress(percent);
+      addLog('DOWNLOAD', `${percent}%`, { percent }, 'DOWNLOAD');
+    }
+    this.releaseBlob = await saveMockRelease(this.store);
+    setReleaseStorageState({ releaseComplete: true, releaseVerified: false, releaseFileAvailable: true });
+    transitionInstallerState('DOWNLOADED', 'Mock release downloaded.');
+  }
+
+  private async verifyMockRelease(): Promise<void> {
+    const { MOCK_RELEASE_SHA256, markMockReleaseVerified } = await this.getMockDeviceModule();
+    const manifest = this.requireManifest();
+    this.requireReleaseBlob();
+    transitionInstallerState('VERIFYING', 'Verifying mock release SHA-256.');
+    for (const percent of [0, 50, 100]) {
+      setProgress(percent);
+      addLog('VERIFY', `${percent}%`, { percent }, 'VERIFY');
+    }
+    await markMockReleaseVerified(this.store);
+    this.verifiedSha256 = MOCK_RELEASE_SHA256;
+    setVerifiedDigest(MOCK_RELEASE_SHA256);
+    setDownloadProgress({
+      releaseId: manifest.release.id,
+      downloadedBytes: manifest.release.size,
+      totalBytes: manifest.release.size,
+      percent: 100,
+      storedLocally: true,
+      verified: true,
+      status: 'Mock release SHA-256 verified.'
+    });
+    setReleaseStorageState({ releaseComplete: true, releaseVerified: true, releaseFileAvailable: true });
+    this.releaseBlob = null;
+    addLog('VERIFY', 'SHA verification: success', undefined, 'VERIFY');
+    transitionInstallerState('VERIFIED', 'Mock release SHA-256 verified.');
+    await this.refreshFlashReadiness();
+  }
+
+  private async getMockDeviceModule(): Promise<typeof import('./mock-device')> {
+    if (!import.meta.env.DEV) {
+      throw new InstallerError('Mock mode is unavailable in production.');
+    }
+    return import('./mock-device');
   }
 
   private createReconnectManager(usb: USB, options?: ReconnectManagerOptions): ReconnectManager {
@@ -1548,31 +2154,41 @@ state=${prerequisites.installerState}`,
     this.reconnectManager = null;
   }
 
-  private fail(error: unknown): void {
+  private fail(error: unknown, userFacingMessage?: string): void {
     if (isDeviceSelectionCancelled(error)) {
       addLog('WARN', 'requestDevice cancelled', { errorClass: 'NotFoundError' }, 'USB');
       this.disposeReconnectManager();
-      this.device = null;
       returnToIdle('No Pixel selected. Put the Pixel 10 in Fastboot Mode and try again.');
       return;
     }
 
-    const message = userMessageForError(error);
+    const message = userFacingMessage ?? userMessageForError(error);
     const errorClass = error instanceof Error ? error.name : typeof error;
-    const flashActivity = this.flashWatchdog?.snapshot() ?? null;
+    const flashActivity = this.flashWatchdog?.snapshot() ?? this.lastFlashActivity;
 
     const stage = getState().statusMessage || getState().installerState;
     const item = flashActivity?.lastItem ?? getState().flash?.item ?? null;
     const mode = getState().flash?.operation === 'unpack' ? 'Preparing files' : getState().deviceInfo.bootloader || 'Unknown';
-    const connection = this.device?.isConnected === false ? 'disconnected' : this.device ? 'connected' : 'not connected';
+    const sessionDevice = this.fastbootSession.device;
+    const connection = sessionDevice?.isConnected === false ? 'disconnected' : sessionDevice ? 'connected' : 'not connected';
     addLog('ERROR', 'Installation error', {
+      ...this.errorDiagnostics(error),
       stage,
       item,
       mode,
       connection,
       message,
       errorClass,
-      lastProgress: flashActivity?.lastProgress ?? getState().flash?.rawProgress ?? null
+      installerState: getState().installerState,
+      factoryFlashActive: this.factoryFlashActive,
+      factoryWaitingForFlashResume: this.factoryWaitingForFlashResume,
+      action: flashActivity.lastAction ?? getState().flash?.operation ?? null,
+      lastAction: flashActivity.lastAction ?? getState().flash?.operation ?? null,
+      lastItem: flashActivity.lastItem ?? getState().flash?.item ?? null,
+      lastProgress: flashActivity.lastProgress ?? getState().flash?.rawProgress ?? null,
+      lastOperation: flashActivity.lastOperation ?? this.formatFactoryOperation(flashActivity.lastAction ?? getState().flash?.operation, flashActivity.lastItem ?? getState().flash?.item),
+      lastSuccessfulOperation: flashActivity.lastSuccessfulOperation ?? null,
+      reconnectSequence: this.reconnectSequence
     }, 'ERROR');
     console.error(error);
     if (getState().installerState !== 'DOWNLOADING') {

@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">MachinaLLM</string>
+    <string name="empty_chat_prompt">How can I help?</string>
+    <string name="message_input_placeholder">Message MachinaLLM</string>
+    <string name="message_input_content_description">Message input</string>
+    <string name="send_message">Send</string>
+    <string name="send_message_content_description">Send message</string>
+    <string name="send_message_loading">Sending</string>
+</resources>
