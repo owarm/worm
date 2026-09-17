@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-ROOT="/opt/worm/build/android"
+ROOT="/opt/worm/grapheneos"
 REPORT_DIR="/opt/worm/reports"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 REPORT="$REPORT_DIR/graphene-stock-git-$STAMP.log"

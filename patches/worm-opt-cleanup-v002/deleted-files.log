@@ -1,0 +1,7 @@
+timestamp=20260915-171348 path=/opt/worm/worm-os reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/old-projects/worm-os.tar.gz
+timestamp=20260915-171348 path=/opt/worm/wormos reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/old-projects/wormos.tar.gz
+timestamp=20260915-171348 path=/opt/worm/local-assets reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/old-projects/local-assets.tar.gz
+timestamp=20260915-171348 path=/opt/worm/audit reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/legacy/tar/audit.tar.gz
+timestamp=20260915-171348 path=/opt/worm/docs reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/legacy/tar/docs.tar.gz
+timestamp=20260915-171348 path=/opt/worm/reports reason=source removed after verified tar archive to /mnt/storage-box-smb/worm/legacy/tar/reports.tar.gz
+timestamp=20260915-171348 path=/opt/worm/tmp reason=empty temporary directory

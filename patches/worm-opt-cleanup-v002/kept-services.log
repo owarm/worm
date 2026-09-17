@@ -1,0 +1,41 @@
+Build/git-like processes present; avoiding GrapheneOS/build/cache deletion.
+timestamp=20260915-163928 path=/opt/worm/grapheneos reason=required GrapheneOS source tree and .repo
+timestamp=20260915-163928 path=/opt/worm/build reason=required incremental build out/cache state
+timestamp=20260915-163928 path=/opt/worm/apps reason=required app sources; active Gradle daemon references this path
+timestamp=20260915-163928 path=/opt/worm/patches reason=required patch/audit records
+timestamp=20260915-163928 path=/opt/worm/artifacts reason=small current APK/report artifacts
+timestamp=20260915-163928 path=/opt/worm/webusb reason=WebUSB source tree and service source
+timestamp=20260915-163928 path=/opt/worm/logs reason=current operational logs
+timestamp=20260915-163928 path=/opt/worm/keys reason=local secrets/keys
+timestamp=20260915-163928 path=/opt/worm/config reason=build configuration references /opt/worm/grapheneos and /opt/worm/build
+timestamp=20260915-163928 path=/opt/worm/scripts reason=build/health scripts reference local build tree
+timestamp=20260915-163928 path=/opt/worm/services reason=worm-logs.service active: WorkingDirectory and ExecStart under /opt/worm/services/logs
+timestamp=20260915-163928 path=/opt/worm/private-portal reason=nginx-published portal source/generator
+timestamp=20260915-163928 path=/opt/worm/network reason=network/VPN audit orchestrator
+timestamp=20260915-163928 path=/opt/worm/.git reason=repository metadata
+timestamp=20260915-163928 path=/opt/worm/.agents reason=agent metadata
+timestamp=20260915-163928 path=/opt/worm/.codex reason=Codex metadata
+timestamp=20260915-163928 path=/opt/worm/releases reason=already_symlink
+Build/git-like processes present; avoiding GrapheneOS/build/cache deletion.
+timestamp=20260915-165607 path=/opt/worm/grapheneos reason=required GrapheneOS source tree and .repo
+timestamp=20260915-165607 path=/opt/worm/build reason=required incremental build out/cache state
+timestamp=20260915-165607 path=/opt/worm/apps reason=required app sources; active Gradle daemon references this path
+timestamp=20260915-165607 path=/opt/worm/patches reason=required patch/audit records
+timestamp=20260915-165607 path=/opt/worm/artifacts reason=small current APK/report artifacts
+timestamp=20260915-165607 path=/opt/worm/webusb reason=WebUSB source tree and service source
+timestamp=20260915-165607 path=/opt/worm/logs reason=current operational logs
+timestamp=20260915-165607 path=/opt/worm/keys reason=local secrets/keys
+timestamp=20260915-165607 path=/opt/worm/config reason=build configuration references /opt/worm/grapheneos and /opt/worm/build
+timestamp=20260915-165607 path=/opt/worm/scripts reason=build/health scripts reference local build tree
+timestamp=20260915-165607 path=/opt/worm/services reason=worm-logs.service active: WorkingDirectory and ExecStart under /opt/worm/services/logs
+timestamp=20260915-165607 path=/opt/worm/private-portal reason=nginx-published portal source/generator
+timestamp=20260915-165607 path=/opt/worm/network reason=network/VPN audit orchestrator
+timestamp=20260915-165607 path=/opt/worm/.git reason=repository metadata
+timestamp=20260915-165607 path=/opt/worm/.agents reason=agent metadata
+timestamp=20260915-165607 path=/opt/worm/.codex reason=Codex metadata
+timestamp=20260915-165607 path=/opt/worm/releases reason=already_symlink
+timestamp=20260915-165607 path=/opt/worm/backups reason=already_symlink
+timestamp=20260915-165607 path=/opt/worm/grapheneos/releases reason=already_symlink
+timestamp=20260915-165607 path=/opt/worm/webusb/public/releases reason=already_symlink
+timestamp=20260915-165607 path=/opt/worm/webusb/dist/releases reason=already_symlink
+timestamp=20260915-171348 path=/opt/worm/keys/worm-os reason=worm-os secret material retained locally

@@ -1,0 +1,111 @@
+PATCH worm-logs-v004
+Timestamp: 2026-09-15 17:36:48 CEST +0200
+Timezone: Europe/Rome
+
+Objective:
+- Create logs.coffee.pm as a dynamic server-side application.
+- Stack: Python, Flask, SQLite, systemd, Caddy reverse proxy.
+- Listen address: 127.0.0.1:8300.
+- Database: /opt/worm/services/worm-logs/logs.sqlite3.
+- Log source: /opt/worm/logs/.
+
+Backups:
+- /opt/worm/patches/worm-logs-v004/backups/Caddyfile.20260915-173010.bak
+- /opt/worm/patches/worm-logs-v004/backups/app.py.20260915-173010.bak
+- /opt/worm/patches/worm-logs-v004/backups/coffee-edge-v003-backends.conf.20260915-173010.bak
+- /opt/worm/patches/worm-logs-v004/backups/worm-logs.service.20260915-173010.bak
+
+Application:
+- Path: /opt/worm/services/worm-logs
+- Main file: /opt/worm/services/worm-logs/app.py
+- Runtime: /opt/worm/services/worm-logs/venv/bin/gunicorn
+- User: wormlogs
+- Workers: 2
+- Bind: 127.0.0.1:8300
+
+Features:
+- Dynamic Flask UI, not static HTML.
+- SQLite index of /opt/worm/logs.
+- Recent logs listed by newest modification time.
+- Metadata tracked: date, time, timezone, patch, category, filename, size, modification time.
+- Category filter.
+- Simple text search over metadata and a bounded portion of file contents.
+- Log file open/read view.
+- Large files are limited to the last 262144 bytes.
+- Path traversal blocked by resolved path check under /opt/worm/logs.
+- UI has no shell execution and no modify/delete actions.
+- Best-effort display redaction for obvious password/token/secret/key patterns.
+- /health returns JSON with status, timezone, and current Europe/Rome time.
+
+Log directories:
+- /opt/worm/logs/audit
+- /opt/worm/logs/network
+- /opt/worm/logs/codex
+- /opt/worm/logs/bash
+- /opt/worm/logs/build
+- /opt/worm/logs/caddy
+- /opt/worm/logs/nginx
+- /opt/worm/logs/system
+- /opt/worm/logs/worm-logs
+
+Reverse proxy:
+- Caddy was already configured for logs.coffee.pm.
+- logs.coffee.pm -> 127.0.0.1:8300
+- Caddyfile backup saved, no Caddyfile content change required.
+- Caddy validation: successful.
+
+nginx:
+- Removed the local logs.coffee.pm backend server block listening on 127.0.0.1:8300.
+- nginx remains backend for:
+  - worm.coffee.pm / worm.estixari.com on 127.0.0.1:8100
+  - apps.coffee.pm on 127.0.0.1:8200
+- nginx validation: successful.
+- nginx reload: successful.
+
+systemd:
+- Installed /etc/systemd/system/worm-logs.service.
+- Enabled worm-logs.service.
+- Started worm-logs.service.
+- Hardening:
+  - NoNewPrivileges=yes
+  - PrivateTmp=yes
+  - ProtectSystem=strict
+  - ProtectHome=yes
+  - ReadOnlyPaths=/opt/worm/logs
+  - ReadWritePaths=/opt/worm/services/worm-logs /opt/worm/logs/worm-logs
+  - RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+  - CapabilityBoundingSet=
+  - LockPersonality=yes
+  - MemoryDenyWriteExecute=yes
+
+Verification:
+- Python syntax check: successful.
+- App import check: successful.
+- Index as wormlogs: successful, 56 log files indexed.
+- Local health:
+  - curl http://127.0.0.1:8300/health
+  - Result: {"status":"ok","time":"2026-09-15T17:36:21.196284+02:00","timezone":"Europe/Rome"}
+- Caddy health with explicit host resolution:
+  - curl --resolve logs.coffee.pm:443:162.55.6.173 https://logs.coffee.pm/health
+  - Result: {"status":"ok","time":"2026-09-15T17:36:21.208154+02:00","timezone":"Europe/Rome"}
+- Direct DNS/TLS check:
+  - curl https://logs.coffee.pm/health
+  - Result: failed on host DNS resolution from this server.
+- Home page:
+  - curl http://127.0.0.1:8300/
+  - Result: HTTP 200.
+
+Ports after patch:
+- 127.0.0.1:8100 nginx
+- 127.0.0.1:8200 nginx
+- 127.0.0.1:8300 worm-logs gunicorn
+- 127.0.0.1:8765 no listener
+- 162.55.6.173:80 Caddy
+- 162.55.6.173:443 Caddy
+- [2a01:4f8:252:7ee::2]:80 Caddy
+- [2a01:4f8:252:7ee::2]:443 Caddy
+
+Warnings:
+- logs.coffee.pm does not currently resolve via system DNS from this host.
+- HTTPS through Caddy was verified with explicit --resolve to 162.55.6.173.
+- The old /opt/worm/services/logs tree was not removed; it is no longer serving 127.0.0.1:8300.

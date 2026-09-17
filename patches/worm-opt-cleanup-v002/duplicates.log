@@ -1,0 +1,1 @@
+timestamp=20260915-163928 broken_symlink=/opt/worm/backups/worm-app-store-integration-20260915-025421/external-AppStore/.git target=../../.repo/projects/external/AppStore.git action=sidecar:/mnt/storage-box-smb/worm/backups/worm-app-store-integration-20260915-025421/external-AppStore/.git.SYMLINK_BROKEN.txt

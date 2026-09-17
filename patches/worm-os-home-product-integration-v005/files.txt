@@ -1,0 +1,6 @@
+/opt/worm/apps/com.worm.home/app/build.gradle.kts
+/opt/worm/apps/com.worm.home/app/src/main/AndroidManifest.xml
+/opt/worm/grapheneos/external/WormHome/Android.bp
+/opt/worm/grapheneos/external/WormHome/AndroidManifest.xml
+/opt/worm/grapheneos/external/WormHome/src -> /opt/worm/apps/com.worm.home/app/src
+/opt/worm/grapheneos/vendor/google_devices/frankel/frankel.mk

@@ -1,0 +1,3 @@
+frameworks/libs/systemui/monet/src/com/android/systemui/monet/ColorScheme.java
+frameworks/libs/systemui/monet/src/com/android/systemui/monet/RelaxedDynamicScheme.java
+frameworks/base/packages/SystemUI/src/com/android/systemui/theme/ThemeOverlayController.java

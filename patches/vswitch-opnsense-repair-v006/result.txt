@@ -1,0 +1,22 @@
+ROBOT_PUBLIC_IP=162.55.6.173/26
+ROBOT_PUBLIC_INTERFACE=enp9s0
+
+VLAN_ID=4000
+VSWITCH_INTERFACE=enp9s0.4000
+ROBOT_PRIVATE_IP=10.20.1.2/24
+
+OPNSENSE_PRIVATE_IP=10.20.1.1_EXPECTED_NOT_PRESENT_ON_CLOUD_PRIVATE_NET
+OPNSENSE_PRIVATE_MAC=NONE_DISCOVERABLE_CLOUD_PRIVATE_NET_EMPTY
+
+ARP_STATUS=FAIL
+PING_STATUS=FAIL
+
+ROBOT_VLAN_STATUS=PASS
+VSWITCH_STATUS=FAIL
+OPNSENSE_NIC_STATUS=FAIL
+
+ROOT_CAUSE=Initial dedicated VLAN runtime/persistent config was on 10.90.20.2/24, so 10.20.1.1 routed incorrectly via the public gateway. That local VLAN-only issue was corrected safely. After correction, ARP requests for 10.20.1.1 leave enp9s0.4000 from 10.20.1.2 but no replies return. Current Hetzner Cloud API shows worm-opnsense id 166074509 running with private_net empty, and Cloud network worm-private remains 10.90.0.0/16 with vSwitch subnet 10.90.20.0/24 instead of the requested 10.20.1.0/24. Remaining blocker is L2/private-network/vSwitch/OPNsense NIC attachment and address-plan mismatch, not an OPNsense ICMP firewall-only problem.
+
+CHANGES_APPLIED=Backed up /etc/network/interfaces and /etc/network/interfaces.d/worm-vswitch under /opt/worm/patches/vswitch-opnsense-repair-v006/backups/; added runtime 10.20.1.2/24 to enp9s0.4000; rewrote only /etc/network/interfaces.d/worm-vswitch to address 10.20.1.2/24, mtu 1400, vlan-raw-device enp9s0. No public IP/default route/gateway/DNS/Caddy/nginx restart/networking restart was performed.
+
+NEXT_ACTION=Do not restart public networking. In Hetzner Robot/Cloud, choose the authoritative design. For the requested 10.20.1.2 <-> 10.20.1.1 target: align vSwitch 85469/Robot membership and Hetzner Cloud network to expose 10.20.1.0/24, attach worm-opnsense to the correct private/vSwitch-backed network, then configure the real OPNsense private interface discovered from console/API with 10.20.1.1/24. If keeping existing Hetzner Cloud 10.90.x design instead, intentionally migrate the dedicated/private plan to 10.90.20.0/24 and update the expected OPNsense IP accordingly. OPNsense API/SSH credentials are not configured locally, so console/API access is required to validate vtnet interface names and firewall rules.

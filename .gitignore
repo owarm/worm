@@ -40,3 +40,59 @@
 *.jks
 *.keystore
 **/.git/
+
+# WORM App Store private signing keys
+worm-os/worm-app-repo/*.sec
+worm-os/worm-app-repo/*.key
+
+# WORM App Store private signing keys
+worm-os/worm-app-repo/*.sec
+worm-os/worm-app-repo/*.key
+
+# WORM Store private material
+worm-os/worm-app-repo/*.sec
+worm-os/worm-app-repo/*.key
+worm-os/worm-app-repo/*.jks
+worm-os/worm-app-repo/*.keystore
+worm-os/worm-app-repo/secrets/
+
+# Runtime keys and VPN private material
+/keys/
+**/wg*.conf
+**/wireguard/*.conf
+**/*wireguard*private*
+**/*wg*private*
+
+# PATCH-005 WORM Store build/private files
+worm-os/keys/
+worm-os/worm-store-src/
+worm-os/worm-app-repo/*.sec
+worm-os/backups/
+
+# Worm OS local proprietary fonts
+grapheneos/vendor/worm/fonts/local/*.ttf
+grapheneos/vendor/worm/fonts/local/*.otf
+grapheneos/vendor/worm/fonts/local/*.ttc
+
+# Android/GitHub release hygiene
+.gradle/
+build/
+**/build/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+*.pk8
+*.pem
+*.key
+*.p12
+*.pfx
+.env
+*.env
+keys/
+dist/
+backups/
+.idea/
+*.iml
+.DS_Store

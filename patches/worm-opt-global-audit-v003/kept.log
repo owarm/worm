@@ -1,0 +1,18 @@
+PATH	CLASSIFICATION	REASON
+/opt/.agents	DELETE_SAFE	Empty Codex/agent metadata directory; not a service path; remove only if empty.
+/opt/.codex	DELETE_SAFE	Empty Codex metadata directory; not a service path; remove only if empty.
+/opt/.git	DELETE_SAFE	Empty/incomplete git metadata directory; /opt is not a valid git repo; remove only if empty.
+/opt/android-sdk	KEEP_BUILD	Protected Android SDK/toolchain; required by Worm AI/Home/Machina builds.
+/opt/com.worm	KEEP_SECRET	Legacy Worm Home project contains keys/*.jks and release.env; do not move whole tree to Storage Box. Subpaths dist/build/cache handled separately.
+/opt/worm	KEEP_MOUNT	Protected active Worm root and mountpoint; active services and GrapheneOS/build tree live here.
+/opt/worm-apps-keys	KEEP_SECRET	Contains app signing keys/secrets.
+/opt/worm-identity	KEEP_SECRET	Identity material; keep local.
+/opt/worm-key-backups	KEEP_SECRET	Key backups; do not move to Storage Box without security confirmation.
+/opt/worm-keys	KEEP_SECRET	Private keys directory; keep local.
+/opt/worm-opnsense	KEEP_SYSTEM	Explicitly protected OPNsense path.
+/opt/worm-release-keys	KEEP_SECRET	Release signing keys; keep local.
+/opt/com.worm/dist	MOVE_RELEASE	Legacy APK output not used by active services; move to Storage Box releases and leave compatibility symlink.
+/opt/com.worm/app/build	DELETE_SAFE	Regenerable Gradle build output for legacy project; no active service refs.
+/opt/com.worm/build	DELETE_SAFE	Regenerable Gradle build report/output for legacy project; no active service refs.
+/opt/com.worm/.gradle	DELETE_SAFE	Regenerable legacy Gradle cache; no active service refs.
+/opt/com.worm/.gradle-codex	DELETE_SAFE	Regenerable legacy Gradle daemon/cache; no active service refs.

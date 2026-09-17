@@ -1,0 +1,57 @@
+# audit-after 20260915163730
+## worm-logs service
+● worm-logs.service - Worm Logs dynamic web service
+     Loaded: loaded (/etc/systemd/system/worm-logs.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 16:37:09 CEST; 20s ago
+ Invocation: 9c2f0e614d654edb87fe27c8fc886156
+   Main PID: 2663925 (gunicorn)
+      Tasks: 3 (limit: 77008)
+     Memory: 26.8M (peak: 27.7M)
+        CPU: 93ms
+     CGroup: /system.slice/worm-logs.service
+             ├─2663925 /opt/worm/services/logs/.venv/bin/python3 /opt/worm/services/logs/.venv/bin/gunicorn --no-control-socket --chdir /opt/worm/services/logs --bind 127.0.0.1:8765 --workers 2 --access-logfile - --error-logfile - app:application
+             ├─2663927 /opt/worm/services/logs/.venv/bin/python3 /opt/worm/services/logs/.venv/bin/gunicorn --no-control-socket --chdir /opt/worm/services/logs --bind 127.0.0.1:8765 --workers 2 --access-logfile - --error-logfile - app:application
+             └─2663928 /opt/worm/services/logs/.venv/bin/python3 /opt/worm/services/logs/.venv/bin/gunicorn --no-control-socket --chdir /opt/worm/services/logs --bind 127.0.0.1:8765 --workers 2 --access-logfile - --error-logfile - app:application
+
+Sep 15 16:37:09 antani systemd[1]: Started worm-logs.service - Worm Logs dynamic web service.
+Sep 15 16:37:09 antani gunicorn[2663925]: [2026-09-15 16:37:09 +0200] [2663925] [INFO] Starting gunicorn 26.2.0
+Sep 15 16:37:09 antani gunicorn[2663925]: [2026-09-15 16:37:09 +0200] [2663925] [INFO] Listening at: http://127.0.0.1:8765 (2663925)
+Sep 15 16:37:09 antani gunicorn[2663925]: [2026-09-15 16:37:09 +0200] [2663925] [INFO] Using worker: sync
+Sep 15 16:37:09 antani gunicorn[2663927]: [2026-09-15 16:37:09 +0200] [2663927] [INFO] Booting worker with pid: 2663927
+Sep 15 16:37:09 antani gunicorn[2663928]: [2026-09-15 16:37:09 +0200] [2663928] [INFO] Booting worker with pid: 2663928
+Sep 15 16:37:10 antani gunicorn[2663927]: 127.0.0.1 - - [15/Sep/2026:16:37:10 +0200] "GET /health HTTP/1.1" 200 3 "-" "curl/8.14.1"
+## health local
+ok
+## health proxy
+ok
+## nginx test
+## wg0
+## db
+{'count': 24, 'outside_runs': 0}
+{'id': 20, 'title': 'worm-first-build-20260910-193645', 'status': 'success', 'exit_code': 0, 'started_at': '2026-09-10T19:36:46+02:00', 'timezone': 'Europe/Rome', 'log_file': '/opt/worm/logs/runs/legacy/2026/09/10/193646-worm-first-build-20260910-193645.log'}
+{'id': 21, 'title': 'worm-opt-cleanup-v001-20260915-161746', 'status': 'success', 'exit_code': 0, 'started_at': '2026-09-15T16:17:46+02:00', 'timezone': 'Europe/Rome', 'log_file': '/opt/worm/logs/runs/legacy/2026/09/15/161746-worm-opt-cleanup-v001-20260915-161746.log'}
+{'id': 22, 'title': 'worm-logs-v001-exit7', 'status': 'failed', 'exit_code': 7, 'started_at': '2026-09-15T16:29:52+02:00', 'timezone': 'Europe/Rome', 'log_file': '/opt/worm/logs/runs/2026/09/15/162952-worm-logs-v001-exit7-14778074.log'}
+{'id': 23, 'title': 'worm-logs-v001-success', 'status': 'success', 'exit_code': 0, 'started_at': '2026-09-15T16:29:53+02:00', 'timezone': 'Europe/Rome', 'log_file': '/opt/worm/logs/runs/2026/09/15/162953-worm-logs-v001-success-e9f0926d.log'}
+{'id': 24, 'title': 'robot-audit-20260915-163519', 'status': 'success', 'exit_code': 0, 'started_at': '2026-09-15T16:36:01+02:00', 'timezone': 'Europe/Rome', 'log_file': '/opt/worm/logs/runs/legacy/2026/09/15/163601-robot-audit-20260915-163519.log'}
+## redaction
+{"id": 23, "status": "success", "bytes": 28, "tail": "WORM_LOGS_OK\nAPI_KEY=[REDACTED]\n"}## nginx coffee refs
+/etc/nginx/sites-available/worm-system-public-guards.conf:3:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm logs.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf:13:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm logs.coffee.pm;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:199:    server_name logs.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:3:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm logs.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:13:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm logs.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:199:    server_name logs.coffee.pm;
+## files
+README.md 533 bytes
+audit-after.log 4271 bytes
+audit-before.log 9003 bytes
+changes.log 760 bytes
+rollback.sh 825 bytes
+## dns/cert extra
+getent hosts logs.coffee.pm:
+coffee.pm certificate SAN:
+subject=CN=coffee.pm
+X509v3 Subject Alternative Name: 
+    DNS:*.coffee.pm, DNS:coffee.pm
+logs proxy detail via VPN resolve:
+200 2646

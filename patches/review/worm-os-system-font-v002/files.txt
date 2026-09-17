@@ -1,0 +1,14 @@
+grapheneos/frameworks/base/data/fonts/fonts.xml
+grapheneos/frameworks/base/data/fonts/font_config.json
+grapheneos/frameworks/base/data/fonts/fallback_order.json
+grapheneos/frameworks/base/data/fonts/alias.json
+grapheneos/frameworks/base/data/fonts/fonts.mk
+grapheneos/frameworks/base/data/fonts/Android.bp
+grapheneos/vendor/worm/fonts/Android.bp
+grapheneos/vendor/worm/fonts/fonts.mk
+grapheneos/vendor/worm/fonts/config/fonts_customization.xml
+grapheneos/vendor/google_devices/frankel/frankel.mk
+grapheneos/vendor/worm/fonts/local/PragmataPro-Regular.ttf
+grapheneos/vendor/worm/fonts/local/PragmataProMono-Regular.ttf
+grapheneos/vendor/worm/fonts/PragmataProWormRegular.ttf
+grapheneos/vendor/worm/fonts/PragmataProWormMono.ttf

@@ -1,0 +1,119 @@
+server {
+    listen 127.0.0.1:8100;
+    server_name worm.coffee.pm worm.estixari.com;
+
+    root /var/www/worm-webusb;
+    index index.html;
+
+    server_tokens off;
+    autoindex off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Permissions-Policy "usb=(self)" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
+
+    location ~* (target_files|keys?|source|tmp|temp|partial|unfinished|\.part|\.crdownload|\.pk8|id_rsa|id_ed25519|avb.*key|secret|credential|keystore) {
+        return 404;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location /releases/ {
+        types {
+            application/zip zip;
+            application/json json;
+        }
+        default_type application/octet-stream;
+        add_header Accept-Ranges "bytes" always;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}
+
+server {
+    listen 127.0.0.1:8200;
+    server_name apps.coffee.pm;
+
+    root /var/www/worm-apps;
+    index index.html;
+
+    server_tokens off;
+    autoindex off;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Content-Security-Policy "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; img-src 'self'; style-src 'self'; script-src 'none'; connect-src 'none'; object-src 'none';" always;
+
+    location ~* (target_files|factory|install|img|keys?|source|tmp|temp|partial|unfinished|\.part|\.crdownload|\.pk8|id_rsa|id_ed25519|avb.*key|secret|credential|keystore) {
+        return 404;
+    }
+
+    location = / {
+        try_files /index.html =404;
+    }
+
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location /metadata/ {
+        types { application/json json; }
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location /files/ {
+        types {
+            application/vnd.android.package-archive apk;
+            application/octet-stream idsig;
+            application/gzip gz;
+            application/x-brotli br;
+        }
+        default_type application/octet-stream;
+        add_header Accept-Ranges "bytes" always;
+        add_header Cache-Control "private, no-transform" always;
+        try_files $uri =404;
+    }
+
+    location /packages/ {
+        types {
+            application/vnd.android.package-archive apk;
+            application/octet-stream idsig;
+            application/gzip gz;
+            application/x-brotli br;
+            text/plain toml;
+        }
+        default_type application/octet-stream;
+        add_header Accept-Ranges "bytes" always;
+        add_header Cache-Control "private, no-transform" always;
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri =404;
+    }
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+}

@@ -1,0 +1,84 @@
+AUDIT_AFTER 20260915-171528
+== df ==
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/md2                             436G  315G  100G  76% /
+/dev/nvme1n1p1                       469G  351G   95G  79% /opt/worm
+//u665326.your-storagebox.de/backup   10T  444G  9.6T   5% /mnt/storage-box-smb
+== top-level /opt/worm ==
+d drwxr-xr-x root root /opt/worm/apps -> 
+d drwxr-xr-x root root /opt/worm/keys -> 
+d drwxr-xr-x root root /opt/worm/network -> 
+d drwxr-xr-x root root /opt/worm/patches -> 
+d drwxr-xr-x root root /opt/worm/private-portal -> 
+d drwxr-xr-x root root /opt/worm/services -> 
+d drwxr-xr-x root root /opt/worm/webusb -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/.agents -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/.codex -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/.git -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/artifacts -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/build -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/config -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/grapheneos -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/logs -> 
+d drwxr-xr-x wormbuild wormbuild /opt/worm/scripts -> 
+f -rw-r--r-- root root /opt/worm/README.md -> 
+f -rw-rw-r-- wormbuild wormbuild /opt/worm/.gitignore -> 
+l lrwxrwxrwx root root /opt/worm/backups -> /mnt/storage-box-smb/worm/backups
+l lrwxrwxrwx root root /opt/worm/releases -> /mnt/storage-box-smb/worm/releases/root
+== du /opt/worm ==
+4.0K	/opt/worm/README.md
+2.6G	/opt/worm/apps
+22M	/opt/worm/artifacts
+0	/opt/worm/backups
+109G	/opt/worm/build
+24K	/opt/worm/config
+239G	/opt/worm/grapheneos
+48K	/opt/worm/keys
+37M	/opt/worm/logs
+480K	/opt/worm/network
+46M	/opt/worm/patches
+124K	/opt/worm/private-portal
+0	/opt/worm/releases
+28K	/opt/worm/scripts
+35M	/opt/worm/services
+58M	/opt/worm/webusb
+4.0K	/opt/worm/.agents
+4.0K	/opt/worm/.codex
+685M	/opt/worm/.git
+4.0K	/opt/worm/.gitignore
+== symlinks introduced ==
+lrwxrwxrwx 1 root root 33 Sep 15 16:39 /opt/worm/backups -> /mnt/storage-box-smb/worm/backups
+lrwxrwxrwx 1 root root 45 Sep 15 16:50 /opt/worm/grapheneos/releases -> /mnt/storage-box-smb/worm/releases/grapheneos
+lrwxrwxrwx 1 root root 39 Sep 15 16:31 /opt/worm/releases -> /mnt/storage-box-smb/worm/releases/root
+lrwxrwxrwx 1 root root 46 Sep 15 16:51 /opt/worm/webusb/dist/releases -> /mnt/storage-box-smb/worm/releases/webusb-dist
+lrwxrwxrwx 1 root root 48 Sep 15 16:50 /opt/worm/webusb/public/releases -> /mnt/storage-box-smb/worm/releases/webusb-public
+== required paths ==
+grapheneos_repo_ok
+build_out_ok
+webusb_ok
+worm_os_secrets_local_ok
+== storage artifacts ==
+-rwxr-xr-x 1 root root 160K Sep 15 17:13 /mnt/storage-box-smb/worm/legacy/tar/audit.tar.gz
+-rwxr-xr-x 1 root root 2.9K Sep 15 17:13 /mnt/storage-box-smb/worm/legacy/tar/docs.tar.gz
+-rwxr-xr-x 1 root root 5.2K Sep 15 17:13 /mnt/storage-box-smb/worm/legacy/tar/reports.tar.gz
+-rwxr-xr-x 1 root root  11M Sep 15 17:13 /mnt/storage-box-smb/worm/old-projects/local-assets.tar.gz
+-rwxr-xr-x 1 root root  22M Sep 15 17:13 /mnt/storage-box-smb/worm/old-projects/worm-os.tar.gz
+-rwxr-xr-x 1 root root 458K Sep 15 17:13 /mnt/storage-box-smb/worm/old-projects/wormos.tar.gz
+== services ==
+  UNIT LOAD ACTIVE SUB DESCRIPTION
+
+0 loaded units listed.
+active
+active
+== nginx ==
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+== wireguard ==
+wg_not_installed
+== mount ==
+TARGET    SOURCE         FSTYPE OPTIONS
+/opt/worm /dev/nvme1n1p1 ext4   rw,relatime
+TARGET               SOURCE                              FSTYPE OPTIONS
+/mnt/storage-box-smb //u665326.your-storagebox.de/backup cifs   rw,relatime,vers=3.0,cache=strict,upcall_target=app,username=u665326,uid=0,noforceuid,gid=0,noforcegid,addr=2a01:04f9:bacc:0003:0300:0000:0000:0528,file_mode=0755,dir_mode=0755,iocharset=utf8,soft,nounix,mapposix,reparse=nfs,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+== remaining absolute refs to moved dirs ==
+AUDIT_AFTER_DONE

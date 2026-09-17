@@ -1,0 +1,499 @@
+PATCH=worm-opt-global-audit-v003
+TIMESTAMP=2026-09-16 03:46:05 CEST +0200
+
+== /opt top-level stat ==
+drwx------ root root 4096 2026-09-10 11:34:19.1106605210 /opt/worm-keys -> 
+drwx------ root root 4096 2026-09-14 17:22:27.3833185370 /opt/worm-key-backups -> 
+drwx------ root root 4096 2026-09-14 19:05:34.5659093310 /opt/worm-apps-keys -> 
+drwx--x--- root wormbuild 4096 2026-09-14 17:53:34.6250570870 /opt/worm-release-keys -> 
+drwxr-xr-x root root 4096 2026-09-11 07:24:23.5170383860 /opt/worm-identity -> 
+drwxr-xr-x root root 4096 2026-09-15 15:10:54.8524445130 /opt/android-sdk -> 
+drwxr-xr-x root root 4096 2026-09-15 16:03:11.1634217640 /opt/worm-opnsense -> 
+drwxr-xr-x root root 4096 2026-09-16 03:44:28.3755849040 /opt/com.worm -> 
+drwxr-xr-x wormbuild wormbuild 4096 2026-09-15 17:13:56.3872414880 /opt/worm -> 
+
+== df ==
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/md2                             436G  315G  100G  77% /
+/dev/md2                             436G  315G  100G  77% /
+/dev/nvme1n1p1                       469G  353G   92G  80% /opt/worm
+//u665326.your-storagebox.de/backup   10T  444G  9.6T   5% /mnt/storage-box-smb
+
+== du /opt/* ==
+4.0K	/opt/worm-keys
+20K	/opt/worm-apps-keys
+28K	/opt/worm-identity
+164K	/opt/worm-opnsense
+296K	/opt/worm-release-keys
+420K	/opt/worm-key-backups
+2.1M	/opt/com.worm
+492M	/opt/android-sdk
+353G	/opt/worm
+
+== findmnt ==
+TARGET                                        SOURCE                              FSTYPE      OPTIONS
+/                                             /dev/md2                            ext4        rw,relatime
+├─/sys                                        sysfs                               sysfs       rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/security                      securityfs                          securityfs  rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/cgroup                            cgroup2                             cgroup2     rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
+│ ├─/sys/fs/pstore                            pstore                              pstore      rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/bpf                               bpf                                 bpf         rw,nosuid,nodev,noexec,relatime,mode=700
+│ ├─/sys/kernel/debug                         debugfs                             debugfs     rw,nosuid,nodev,noexec,relatime
+│ │ └─/sys/kernel/debug/tracing               tracefs                             tracefs     rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/tracing                       tracefs                             tracefs     rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/fuse/connections                  fusectl                             fusectl     rw,nosuid,nodev,noexec,relatime
+│ └─/sys/kernel/config                        configfs                            configfs    rw,nosuid,nodev,noexec,relatime
+├─/proc                                       proc                                proc        rw,relatime
+│ └─/proc/sys/fs/binfmt_misc                  systemd-1                           autofs      rw,relatime,fd=41,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=10267
+│   └─/proc/sys/fs/binfmt_misc                binfmt_misc                         binfmt_misc rw,nosuid,nodev,noexec,relatime
+├─/dev                                        udev                                devtmpfs    rw,nosuid,relatime,size=32857156k,nr_inodes=8214289,mode=755,inode64
+│ ├─/dev/pts                                  devpts                              devpts      rw,nosuid,noexec,relatime,gid=5,mode=600,ptmxmode=000
+│ ├─/dev/shm                                  tmpfs                               tmpfs       rw,nosuid,nodev,inode64
+│ ├─/dev/mqueue                               mqueue                              mqueue      rw,nosuid,nodev,noexec,relatime
+│ └─/dev/hugepages                            hugetlbfs                           hugetlbfs   rw,nosuid,nodev,relatime,pagesize=2M
+├─/run                                        tmpfs                               tmpfs       rw,nosuid,nodev,noexec,relatime,size=6577664k,mode=755,inode64
+│ ├─/run/lock                                 tmpfs                               tmpfs       rw,nosuid,nodev,noexec,relatime,size=5120k,inode64
+│ ├─/run/user/0                               tmpfs                               tmpfs       rw,nosuid,nodev,relatime,size=6577660k,nr_inodes=1644415,mode=700,inode64
+│ ├─/run/credentials/getty@tty1.service       tmpfs                               tmpfs       ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap
+│ └─/run/credentials/systemd-journald.service tmpfs                               tmpfs       ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap
+├─/tmp                                        tmpfs                               tmpfs       rw,nosuid,nodev,size=32888320k,nr_inodes=1048576,inode64
+├─/boot                                       /dev/md1                            ext3        rw,relatime
+├─/mnt/storage-box                            systemd-1                           autofs      rw,relatime,fd=66,pgrp=1,timeout=600,minproto=5,maxproto=5,direct,pipe_ino=43954944
+├─/opt/worm                                   /dev/nvme1n1p1                      ext4        rw,relatime
+├─/mnt/worm-build                             tmpfs                               tmpfs       rw,nosuid,nodev,noatime,size=35651584k,mode=750,uid=1001,gid=1001,inode64
+├─/mnt/storage-box-smb                        //u665326.your-storagebox.de/backup cifs        rw,relatime,vers=3.0,cache=strict,upcall_target=app,username=u665326,uid=0,noforceuid,gid=0,noforcegid,addr=2a01:04f9:bacc:0003:0300:0000:0000:0528,file_mode=0755,dir_mode=0755,iocharset=utf8,soft,nounix,mapposix,reparse=nfs,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+└─/mnt/worm/build                             tmpfs                               tmpfs       rw,relatime,size=35651584k,inode64
+
+== broken symlinks /opt ==
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/ld-android.so
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/libbase.so
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/libc++.so
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/liblzma.so
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/libprocinfo.so
+/opt/worm/build/out/soong/.intermediates/bionic/apex/com.android.runtime/android_common_hwasan_com.android.runtime/image.apex/lib64/libunwindstack.so
+/opt/worm/build/out/soong/.intermediates/hardware/interfaces/biometrics/face/aidl/default/apex/com.android.hardware.biometrics.face.virtual/android_common_com.android.hardware.biometrics.face.virtual/image.apex/lib64/libc++.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/RuntimeI18n/apex/com.android.i18n/android_common_com.android.i18n/image.apex/lib64/libbase.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/RuntimeI18n/apex/com.android.i18n/android_common_com.android.i18n/image.apex/lib64/libc++.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libanyhow.dylib.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libbase.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libc++.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libcap.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libcrypto.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libcutils.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libminijail.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libprocessgroup.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libsqlite.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libssl.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libstd.dylib.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/apex/com.android.virt/android_common_com.android.virt/image.apex/lib64/libtombstoned_client.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libbase.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libc++.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libcap.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libcrypto.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libcutils.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libssl.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/compos/com.android.compos/android_common_com.android.compos/image.apex/lib64/libutils.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/bin
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/etc
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/bin/linker64
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/bin/linker_asan64
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/bin/linker_hwasan64
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/lib64/libc.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/lib64/libdl.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/lib64/libdl_android.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid/android_common/system/system/lib64/libm.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/build/microdroid/microdroid_first_stage_ramdisk/android_common/microdroid_first_stage_ramdisk/lib
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/guest/kdump/microdroid_crashdump_initrd/android_common/microdroid_crashdump_initrd/lib64/libc.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/guest/kdump/microdroid_crashdump_initrd/android_common/microdroid_crashdump_initrd/lib64/libdl.so
+/opt/worm/build/out/soong/.intermediates/packages/modules/Virtualization/guest/kdump/microdroid_crashdump_initrd/android_common/microdroid_crashdump_initrd/lib64/libm.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/PRODUCT/app/Gallery2/lib/arm64/libjni_eglfence.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/PRODUCT/app/Gallery2/lib/arm64/libjni_filtershow_filters.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/PRODUCT/app/Gallery2/lib/arm64/libjni_jpegstream.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/PRODUCT/app/LatinIME/lib/arm64/libjni_latinime.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/adb_keys
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/bin
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/bugreports
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/cache
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/init
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/apex
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/app
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/bin
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/firmware
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/framework
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/lib
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/lib64
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/overlay
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/priv-app
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm/usr
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/odm_dlkm/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/sdcard
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/ROOT/vendor_dlkm/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/app/PrintSpooler/lib/arm64/libprintspooler_jni.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/ethtool
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/hwservicemanager
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/linker64
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/linker_asan64
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/linker_hwasan64
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/bin/wificond
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib/modules
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/hwasan/libc.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/libc.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/libclang_rt.hwasan-aarch64-android.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/libdl.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/libdl_android.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/lib64/libm.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/priv-app/BuiltInPrintService/lib/arm64/libcups.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/priv-app/BuiltInPrintService/lib/arm64/libwfds.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/priv-app/DeviceAsWebcam/lib/arm64/libjni_deviceAsWebcam.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/priv-app/NetworkLocation/lib/arm64/libnetwork_location_position_estimation_rust.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/product
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/system_ext
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/usr/icu
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM/vendor
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/SYSTEM_EXT/priv-app/PixelDisplayService/lib/arm64/libpixeldisplaymanager_jni.so
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR/lib/modules
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/adb_keys
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/bin
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/bugreports
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/init
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/apex
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/app
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/bin
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/firmware
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/framework
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/lib
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/lib64
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/overlay
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/priv-app
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm/usr
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/odm_dlkm/etc
+/opt/worm/build/out/target/product/frankel/obj/PACKAGING/target_files_intermediates/frankel-target_files/VENDOR_BOOT/RAMDISK/vendor_dlkm/etc
+/opt/worm/build/out/target/product/frankel/product/app/Gallery2/lib/arm64/libjni_eglfence.so
+/opt/worm/build/out/target/product/frankel/product/app/Gallery2/lib/arm64/libjni_filtershow_filters.so
+/opt/worm/build/out/target/product/frankel/product/app/Gallery2/lib/arm64/libjni_jpegstream.so
+/opt/worm/build/out/target/product/frankel/product/app/LatinIME/lib/arm64/libjni_latinime.so
+/opt/worm/build/out/target/product/frankel/recovery/root/adb_keys
+/opt/worm/build/out/target/product/frankel/recovery/root/bin
+/opt/worm/build/out/target/product/frankel/recovery/root/bugreports
+/opt/worm/build/out/target/product/frankel/recovery/root/etc
+/opt/worm/build/out/target/product/frankel/recovery/root/init
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/apex
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/app
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/bin
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/etc
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/firmware
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/framework
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/lib
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/lib64
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/overlay
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/priv-app
+/opt/worm/build/out/target/product/frankel/recovery/root/odm/usr
+/opt/worm/build/out/target/product/frankel/recovery/root/odm_dlkm/etc
+/opt/worm/build/out/target/product/frankel/recovery/root/vendor_dlkm/etc
+/opt/worm/build/out/target/product/frankel/root/adb_keys
+/opt/worm/build/out/target/product/frankel/root/bin
+/opt/worm/build/out/target/product/frankel/root/bugreports
+/opt/worm/build/out/target/product/frankel/root/cache
+/opt/worm/build/out/target/product/frankel/root/etc
+/opt/worm/build/out/target/product/frankel/root/init
+/opt/worm/build/out/target/product/frankel/root/odm/apex
+/opt/worm/build/out/target/product/frankel/root/odm/app
+/opt/worm/build/out/target/product/frankel/root/odm/bin
+/opt/worm/build/out/target/product/frankel/root/odm/etc
+/opt/worm/build/out/target/product/frankel/root/odm/firmware
+/opt/worm/build/out/target/product/frankel/root/odm/framework
+/opt/worm/build/out/target/product/frankel/root/odm/lib
+/opt/worm/build/out/target/product/frankel/root/odm/lib64
+/opt/worm/build/out/target/product/frankel/root/odm/overlay
+/opt/worm/build/out/target/product/frankel/root/odm/priv-app
+/opt/worm/build/out/target/product/frankel/root/odm/usr
+/opt/worm/build/out/target/product/frankel/root/odm_dlkm/etc
+/opt/worm/build/out/target/product/frankel/root/sdcard
+/opt/worm/build/out/target/product/frankel/root/vendor_dlkm/etc
+/opt/worm/build/out/target/product/frankel/system/app/PrintSpooler/lib/arm64/libprintspooler_jni.so
+/opt/worm/build/out/target/product/frankel/system/bin/ethtool
+/opt/worm/build/out/target/product/frankel/system/bin/hwservicemanager
+/opt/worm/build/out/target/product/frankel/system/bin/linker64
+/opt/worm/build/out/target/product/frankel/system/bin/linker_asan64
+/opt/worm/build/out/target/product/frankel/system/bin/linker_hwasan64
+/opt/worm/build/out/target/product/frankel/system/bin/wificond
+/opt/worm/build/out/target/product/frankel/system/lib/modules
+/opt/worm/build/out/target/product/frankel/system/lib64/hwasan/libc.so
+/opt/worm/build/out/target/product/frankel/system/lib64/libc.so
+/opt/worm/build/out/target/product/frankel/system/lib64/libclang_rt.hwasan-aarch64-android.so
+/opt/worm/build/out/target/product/frankel/system/lib64/libdl.so
+/opt/worm/build/out/target/product/frankel/system/lib64/libdl_android.so
+/opt/worm/build/out/target/product/frankel/system/lib64/libm.so
+/opt/worm/build/out/target/product/frankel/system/priv-app/BuiltInPrintService/lib/arm64/libcups.so
+/opt/worm/build/out/target/product/frankel/system/priv-app/BuiltInPrintService/lib/arm64/libwfds.so
+/opt/worm/build/out/target/product/frankel/system/priv-app/DeviceAsWebcam/lib/arm64/libjni_deviceAsWebcam.so
+/opt/worm/build/out/target/product/frankel/system/priv-app/NetworkLocation/lib/arm64/libnetwork_location_position_estimation_rust.so
+/opt/worm/build/out/target/product/frankel/system/product
+/opt/worm/build/out/target/product/frankel/system/system_ext
+/opt/worm/build/out/target/product/frankel/system/usr/icu
+/opt/worm/build/out/target/product/frankel/system/vendor
+/opt/worm/build/out/target/product/frankel/system_ext/priv-app/PixelDisplayService/lib/arm64/libpixeldisplaymanager_jni.so
+/opt/worm/build/out/target/product/frankel/vendor/lib/modules
+/opt/worm/grapheneos/build/blueprint/pathtools/testdata/dangling/dangling
+/opt/worm/grapheneos/external/bcc/tests/lua/spec
+/opt/worm/grapheneos/external/iptables/iptables/NOTICE
+/opt/worm/grapheneos/external/kmod/testsuite/rootfs-pristine/test-loaded/sys/module/btusb/drivers/usb:btusb
+/opt/worm/grapheneos/external/kotlinx.atomicfu/LICENSE
+/opt/worm/grapheneos/external/kotlinx.atomicfu/NOTICE
+/opt/worm/grapheneos/external/libcxx/test/std/input.output/filesystems/Inputs/static_test_env/bad_symlink
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/bpf/disasm.c
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/bpf/disasm.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/bpf/json_writer.c
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/bpf/json_writer.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/copy_mc_64.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/copyuser_64.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/copyuser_power7.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/mem_64.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/memcpy_64.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/copyloops/memcpy_power7.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/mce/vas-api.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/nx-gzip/include/vas-api.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/asm/asm-compat.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/asm/asm-const.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/asm/extable.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/asm/feature-fixups.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/asm/ppc_asm.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/linux/wordpart.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/primitives/word-at-a-time.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/stringloops/memcmp_32.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/stringloops/memcmp_64.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/stringloops/strlen_32.S
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/vphn/asm/vphn.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/powerpc/vphn/vphn.c
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/vfio/lib/drivers/dsa/registers.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/vfio/lib/drivers/ioat/hw.h
+/opt/worm/grapheneos/external/linux-kselftest/tools/testing/selftests/vfio/lib/drivers/ioat/registers.h
+/opt/worm/grapheneos/external/toolchain-utils/compiler_wrapper/android_llvm_next_flags.go
+/opt/worm/grapheneos/external/wireguard-tools/src/src/wg-quick/wg
+/opt/worm/grapheneos/frameworks/av/media/codec2/libion_legacy/.clang-format
+/opt/worm/grapheneos/frameworks/native/include/private/binder
+/opt/worm/grapheneos/frameworks/wilhelm/tools/hashgen/OpenSLES_IID.c
+/opt/worm/grapheneos/frameworks/wilhelm/tools/hashgen/interfaces.c
+/opt/worm/grapheneos/keys/keys
+/opt/worm/grapheneos/out_adevtool_deps/target/product/emu64x/system/lib64/libc.so
+/opt/worm/grapheneos/out_adevtool_deps/target/product/emu64x/system/lib64/libdl.so
+/opt/worm/grapheneos/out_adevtool_deps/target/product/emu64x/system/lib64/libdl_android.so
+/opt/worm/grapheneos/out_adevtool_deps/target/product/emu64x/system/lib64/libm.so
+/opt/worm/grapheneos/packages/apps/Calendar/libs/android-support-v4.jar
+/opt/worm/grapheneos/packages/modules/Uwb/libuwb-uci/rustfmt.toml
+/opt/worm/grapheneos/prebuilts/bazel/common/remote_java_tools/java_tools/proguard.jar
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/product/priv-app/DMService/lib/arm64/libdmengine.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/product/priv-app/DMService/lib/arm64/libdmjavaplugin.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/adb_keys
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/bin
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/bugreports
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/cache
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/init
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/apex
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/app
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/bin
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/firmware
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/framework
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/lib
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/lib64
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/overlay
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/priv-app
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm/usr
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/odm_dlkm/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/sdcard
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/app/PrintSpooler/lib/arm64/libprintspooler_jni.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/ethtool
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/hwservicemanager
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/linker64
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/linker_asan64
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/linker_hwasan64
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/bin/wificond
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib/modules
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/hwasan/libc.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/libc.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/libclang_rt.hwasan-aarch64-android.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/libdl.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/libdl_android.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/lib64/libm.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/priv-app/BuiltInPrintService/lib/arm64/libcups.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/priv-app/BuiltInPrintService/lib/arm64/libwfds.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/priv-app/DeviceAsWebcam/lib/arm64/libjni_deviceAsWebcam.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/product
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/system_ext
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/usr/icu
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/system/vendor
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system/vendor_dlkm/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system_ext/priv-app/PixelDisplayService/lib/arm64/libpixeldisplaymanager_jni.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/system_ext/priv-app/TurboAdapter/lib/arm64/libpowerstatshaldataprovider.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.i18n.apex/lib64/libbase.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.i18n.apex/lib64/libc++.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/ld-android.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/libbase.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/libc++.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/liblzma.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/libprocinfo.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.android.runtime.apex/lib64/libunwindstack.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libanyhow.dylib.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libbase.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libc++.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libcap.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libcrypto.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libcutils.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libminijail.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libprocessgroup.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libsqlite.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libssl.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libstd.dylib.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system/system/apex/com.google.android.virt.apex/lib64/libtombstoned_client.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.android.hardware.biometrics.face.virtual.apex/lib64/libc++.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libbase.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libc++.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libcap.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libcrypto.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libcutils.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libssl.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/unpacked_apexes/system_ext/apex/com.google.android.compos.apex/lib64/libutils.so
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor/lib/modules
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/adb_keys
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/bin
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/bugreports
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/init
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/apex
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/app
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/bin
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/firmware
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/framework
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/lib
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/lib64
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/overlay
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/priv-app
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm/usr
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/odm_dlkm/etc
+/opt/worm/grapheneos/vendor/adevtool/dl/unpacked/frankel-CP2A.260805.005/vendor_boot/vendor_ramdisk00__unpacked/vendor_dlkm/etc
+
+== systemctl failed ==
+  UNIT LOAD ACTIVE SUB DESCRIPTION
+
+0 loaded units listed.
+
+== key services ==
+active
+active
+active
+● caddy.service - Caddy
+     Loaded: loaded (/usr/lib/systemd/system/caddy.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 17:26:44 CEST; 10h ago
+ Invocation: efa551f456c449d4ac6170421db82db3
+       Docs: https://caddyserver.com/docs/
+   Main PID: 2679542 (caddy)
+      Tasks: 17 (limit: 77008)
+     Memory: 34.2M (peak: 47.6M, swap: 784K, swap peak: 952K)
+        CPU: 2.563s
+     CGroup: /system.slice/caddy.service
+             └─2679542 /usr/bin/caddy run --environ --config /etc/caddy/Caddyfile
+
+Sep 15 17:26:44 antani caddy[2679542]: HOME=/var/lib/caddy
+Sep 15 17:26:44 antani caddy[2679542]: INVOCATION_ID=efa551f456c449d4ac6170421db82db3
+Sep 15 17:26:44 antani caddy[2679542]: JOURNAL_STREAM=9:48825028
+Sep 15 17:26:44 antani caddy[2679542]: SYSTEMD_EXEC_PID=2679542
+Sep 15 17:26:44 antani caddy[2679542]: MEMORY_PRESSURE_WATCH=/sys/fs/cgroup/system.slice/caddy.service/memory.pressure
+Sep 15 17:26:44 antani caddy[2679542]: MEMORY_PRESSURE_WRITE=c29tZSAyMDAwMDAgMjAwMDAwMAA=
+Sep 15 17:26:44 antani caddy[2679542]: {"level":"info","ts":1789486004.8531291,"msg":"using provided configuration","config_file":"/etc/caddy/Caddyfile","config_adapter":""}
+Sep 15 17:26:44 antani caddy[2679542]: {"level":"info","ts":1789486004.856378,"msg":"redirected default logger","from":"stderr","to":"/opt/worm/logs/caddy/global.log"}
+Sep 15 17:26:44 antani caddy[2679542]: {"level":"info","ts":1789486004.8579042,"msg":"failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details."}
+Sep 15 17:26:44 antani systemd[1]: Started caddy.service - Caddy.
+
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 17:23:49 CEST; 10h ago
+ Invocation: ab9ec1b75d864384b11db300c5bfb60b
+       Docs: man:nginx(8)
+   Main PID: 2678846 (nginx)
+      Tasks: 13 (limit: 77008)
+     Memory: 13.3M (peak: 30.6M, swap: 3M, swap peak: 3M)
+        CPU: 169ms
+     CGroup: /system.slice/nginx.service
+             ├─2678846 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─2681685 "nginx: worker process"
+             ├─2681686 "nginx: worker process"
+             ├─2681687 "nginx: worker process"
+             ├─2681688 "nginx: worker process"
+             ├─2681689 "nginx: worker process"
+             ├─2681690 "nginx: worker process"
+             ├─2681691 "nginx: worker process"
+             ├─2681692 "nginx: worker process"
+             ├─2681693 "nginx: worker process"
+             ├─2681694 "nginx: worker process"
+             ├─2681695 "nginx: worker process"
+             └─2681696 "nginx: worker process"
+
+Sep 15 17:23:49 antani systemd[1]: Starting nginx.service - A high performance web server and a reverse proxy server...
+Sep 15 17:23:49 antani systemd[1]: Started nginx.service - A high performance web server and a reverse proxy server.
+Sep 15 17:34:39 antani systemd[1]: Reloading nginx.service - A high performance web server and a reverse proxy server...
+Sep 15 17:34:39 antani nginx[2681683]: 2026/09/15 17:34:39 [notice] 2681683#2681683: signal process started
+Sep 15 17:34:39 antani systemd[1]: Reloaded nginx.service - A high performance web server and a reverse proxy server.
+
+● worm-logs.service - Worm Logs dynamic server-side application
+     Loaded: loaded (/etc/systemd/system/worm-logs.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 17:36:10 CEST; 10h ago
+ Invocation: eb9683a5dc0c4005a1846a2603ba2070
+   Main PID: 2682289 (gunicorn)
+      Tasks: 3 (limit: 77008)
+     Memory: 24M (peak: 55.9M, swap: 30.4M, swap peak: 30.4M)
+        CPU: 1.694s
+     CGroup: /system.slice/worm-logs.service
+             ├─2682289 /opt/worm/services/worm-logs/venv/bin/python3 /opt/worm/services/worm-logs/venv/bin/gunicorn --no-control-socket --workers 2 --bind 127.0.0.1:8300 app:app
+             ├─2682291 /opt/worm/services/worm-logs/venv/bin/python3 /opt/worm/services/worm-logs/venv/bin/gunicorn --no-control-socket --workers 2 --bind 127.0.0.1:8300 app:app
+             └─2682292 /opt/worm/services/worm-logs/venv/bin/python3 /opt/worm/services/worm-logs/venv/bin/gunicorn --no-control-socket --workers 2 --bind 127.0.0.1:8300 app:app
+
+Sep 15 17:36:10 antani systemd[1]: Started worm-logs.service - Worm Logs dynamic server-side application.
+Sep 15 17:36:10 antani gunicorn[2682289]: [2026-09-15 17:36:10 +0200] [2682289] [INFO] Starting gunicorn 26.2.0
+Sep 15 17:36:10 antani gunicorn[2682289]: [2026-09-15 17:36:10 +0200] [2682289] [INFO] Listening at: http://127.0.0.1:8300 (2682289)
+Sep 15 17:36:10 antani gunicorn[2682289]: [2026-09-15 17:36:10 +0200] [2682289] [INFO] Using worker: sync
+Sep 15 17:36:10 antani gunicorn[2682291]: [2026-09-15 17:36:10 +0200] [2682291] [INFO] Booting worker with pid: 2682291
+Sep 15 17:36:10 antani gunicorn[2682292]: [2026-09-15 17:36:10 +0200] [2682292] [INFO] Booting worker with pid: 2682292
+
+== caddy/nginx validation ==
+{"level":"info","ts":1789523200.5906446,"msg":"using provided configuration","config_file":"/etc/caddy/Caddyfile","config_adapter":""}
+{"level":"info","ts":1789523200.5934749,"msg":"redirected default logger","from":"stderr","to":"/opt/worm/logs/caddy/global.log"}
+Valid configuration
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+== logs health ==
+{"status":"ok","time":"2026-09-16T03:46:40.619942+02:00","timezone":"Europe/Rome"}
+
+== Android SDK ==
+drwxr-xr-x 8 root root     4096 Sep 15 15:10 /opt/android-sdk
+-rwxr-xr-x 1 root root 10642368 Sep 14 10:47 /opt/android-sdk/platform-tools/adb
+
+== GrapheneOS path ==
+drwxr-xr-x 34 wormbuild wormbuild 4096 Sep 15 16:50 /opt/worm/grapheneos
+drwxr-xr-x  7 wormbuild wormbuild 4096 Sep 14 11:51 /opt/worm/grapheneos/.repo
+
+== OPNsense path ==
+drwxr-xr-x 9 root root 4096 Sep 15 16:03 /opt/worm-opnsense
+
+== processes cwd deleted ==
+4173165 adb cwd=/opt/Android.old/worm (deleted)
+
+== /opt/worm structure ==
+drwxr-xr-x 34 wormbuild wormbuild 4096 Sep 15 16:50 /opt/worm/grapheneos
+drwxr-xr-x 9 wormbuild wormbuild 4096 Sep 16 03:17 /opt/worm/build
+drwxr-xr-x 6 root root 4096 Sep 16 03:15 /opt/worm/apps
+drwxr-xr-x 30 root root 4096 Sep 16 03:38 /opt/worm/patches
+drwxr-xr-x 7 wormbuild wormbuild 4096 Sep 16 03:41 /opt/worm/artifacts
+drwxr-xr-x 15 root root 4096 Sep 13 15:24 /opt/worm/webusb
+lrwxrwxrwx 1 root root 39 Sep 15 16:31 /opt/worm/releases -> /mnt/storage-box-smb/worm/releases/root
+lrwxrwxrwx 1 root root 33 Sep 15 16:39 /opt/worm/backups -> /mnt/storage-box-smb/worm/backups
+drwxr-xr-x 13 wormbuild wormbuild 4096 Sep 16 03:17 /opt/worm/logs
+drwxr-xr-x 4 root root 4096 Sep 15 17:07 /opt/worm/keys
+drwxr-xr-x 4 root root 4096 Sep 15 16:39 /opt/worm/services

@@ -1,0 +1,176 @@
+PATCH robot-coffee-final-v005
+Timestamp: 2026-09-15 17:40:50 CEST +0200
+Timezone: Europe/Rome
+
+Scope:
+- Final audit/normalization of Robot + coffee.pm edge.
+- No destructive changes applied.
+- No OPNsense creation, no QEMU, no public IP move, no default gateway change, no WAN cutover, no public OTA exposure.
+- Safe runtime correction: none required/none applied.
+
+ROBOT: WARN
+- Dedicated host: antani.
+- Public NIC: enp9s0.
+- Public IPv4: 162.55.6.173/26.
+- Public IPv6: 2a01:4f8:252:7ee::2/64.
+- Public gateway: 162.55.6.129 via enp9s0, onlink.
+- Public MAC: a8:a1:59:4f:45:9b.
+- Public MTU: 1500.
+- Robot API credentials are not configured locally, so server membership and vSwitch state cannot be verified through Robot API.
+- Previous network audit had Robot status missing_config.
+
+OPNSENSE: FAIL
+- Cloud API audit found server worm-opnsense id=164649753, public IPv4=2.28.34.27.
+- Previous cloud audit reported worm-opnsense status=off and private_networks empty.
+- OPNsense API/SSH are not configured locally.
+- Private OPNsense interface is not verifiable.
+- Dedicated cannot reach presumed private gateway 10.20.1.1; ping failed and ARP remained INCOMPLETE.
+
+VSWITCH: FAIL
+- Local VLAN interface exists: enp9s0.4000, UP.
+- Current local private IP: 10.20.1.2/24.
+- Current VLAN MTU: 1400.
+- Current private route: 10.20.1.0/24 dev enp9s0.4000.
+- Robot vSwitch membership cannot be verified because Robot credentials are missing.
+- Previous topology text referenced Robot vSwitch 85469, but generated robot.json status was missing_config.
+- Previous Cloud Network audit reported existing worm-private as 10.90.0.0/16 with subnets 10.90.10.0/24 and 10.90.20.0/24, not the desired 10.20.0.0/24 and 10.20.1.0/24.
+
+VPN: FAIL
+- wg command is not installed on this dedicated host.
+- No local WireGuard interface detected.
+- No WireGuard service detected by systemd service listing.
+- No VPN route detected.
+- OTA and management must remain designed as VPN-only, but firewall rules were not changed because no authoritative VPN interface/subnet is present.
+
+STORAGE BOX: WARN
+- Storage Box mount detected at /mnt/storage-box-smb:
+  //u665326.your-storagebox.de/backup 10T, 444G used, 9.6T free.
+- /opt/worm/backups -> /mnt/storage-box-smb/worm/backups.
+- /opt/worm/releases -> /mnt/storage-box-smb/worm/releases/root.
+- /opt/worm/releases target is unusual because it points at releases/root rather than releases directly.
+- Read/write test without escalation returned storage_rw=no; no changes were forced.
+
+CADDY: WARN
+- caddy.service is active.
+- caddy validate succeeded.
+- Caddy is the only expected public listener on 80/443:
+  162.55.6.173:80
+  162.55.6.173:443
+  [2a01:4f8:252:7ee::2]:80
+  [2a01:4f8:252:7ee::2]:443
+- Caddy also exposes QUIC/UDP 443 on the same public IPs, expected for Caddy.
+- Local connection from this host to 162.55.6.173:443 failed immediately despite listener being present; external verification should be done from another network.
+
+NGINX: PASS
+- nginx.service is active.
+- nginx -t succeeded.
+- nginx does not listen on public 80/443.
+- nginx backends:
+  127.0.0.1:8100 for worm.coffee.pm / worm.estixari.com backend.
+  127.0.0.1:8200 for apps.coffee.pm backend.
+  10.20.1.2:443 for private-side service exposure.
+- nginx no longer owns 127.0.0.1:8300.
+
+COFFEE.PM: WARN
+- Expected domains:
+  worm.coffee.pm -> Caddy -> 127.0.0.1:8100.
+  apps.coffee.pm -> Caddy -> 127.0.0.1:8200.
+  logs.coffee.pm -> Caddy -> 127.0.0.1:8300.
+- Local backends are healthy:
+  http://127.0.0.1:8100/ returned HTTP 200.
+  http://127.0.0.1:8200/ returned HTTP 200.
+  http://127.0.0.1:8300/health returned status ok.
+- DNS resolution from this host failed for all three coffee.pm names.
+- Resolver also failed to resolve cloudflare-dns.com and dns.google, so the host DNS resolver itself is currently unreliable/broken.
+- HTTPS domain verification from this host is inconclusive due DNS failure and failed local-connect/hairpin to 162.55.6.173:443.
+
+LOGS: PASS
+- worm-logs.service is active and enabled.
+- Runtime: gunicorn bound to 127.0.0.1:8300.
+- /health returned:
+  {"status":"ok","time":"2026-09-15T17:39:58.251064+02:00","timezone":"Europe/Rome"}
+- SQLite database exists:
+  /opt/worm/services/worm-logs/logs.sqlite3.
+- 56 logs indexed during worm-logs-v004 verification.
+- /opt/worm/logs structure includes:
+  audit, network, codex, bash, build, caddy, nginx, system, worm-logs.
+- /opt/worm/logs/runs is not readable by the current audit user, but this was not changed.
+
+PORTS: WARN
+- Expected public:
+  TCP 162.55.6.173:80 caddy.
+  TCP 162.55.6.173:443 caddy.
+  TCP [2a01:4f8:252:7ee::2]:80 caddy.
+  TCP [2a01:4f8:252:7ee::2]:443 caddy.
+  UDP 162.55.6.173:443 caddy.
+  UDP [2a01:4f8:252:7ee::2]:443 caddy.
+- Expected local/private:
+  TCP 127.0.0.1:8100 nginx.
+  TCP 127.0.0.1:8200 nginx.
+  TCP 127.0.0.1:8300 worm-logs gunicorn.
+  TCP 10.20.1.2:443 nginx.
+  TCP 127.0.0.1:2019 caddy admin.
+  TCP 127.0.0.1:8891 opendkim.
+  TCP 127.0.0.1:25 postfix master.
+  TCP 127.0.0.1:5037 adb.
+- Public/wildcard listeners to review:
+  TCP 0.0.0.0:22 sshd.
+  TCP [::]:22 sshd.
+  UDP 0.0.0.0:5353 adb.
+  UDP *:5353 adb.
+  UDP *:52378 java.
+- No automatic changes were made to adb/java/sshd because their role was not proven safe to alter.
+
+DNS: FAIL
+- getent ahosts returned no records for:
+  worm.coffee.pm
+  apps.coffee.pm
+  logs.coffee.pm
+- /etc/resolv.conf lists Hetzner resolvers:
+  185.12.64.1
+  2a01:4ff:ff00::add:2
+  185.12.64.2
+  2a01:4ff:ff00::add:1
+- The same resolver path also failed for cloudflare-dns.com and dns.google.
+
+TLS: WARN
+- Caddy configuration validates.
+- Caddy is listening on public TLS sockets.
+- Direct TLS test by domain cannot complete due local DNS failure.
+- Direct local/hairpin connect to 162.55.6.173:443 failed from this host despite Caddy listener, requiring external verification.
+
+/OPT/WORM: WARN
+- Required directories present:
+  grapheneos, build, apps, patches, artifacts, webusb, logs, keys, services.
+- Required symlinks present:
+  backups -> /mnt/storage-box-smb/worm/backups.
+  releases -> /mnt/storage-box-smb/worm/releases/root.
+- Additional top-level elements outside target structure:
+  .agents, .codex, .git, .gitignore, README.md, config, network, private-portal, scripts.
+- Some additions are likely service/tooling related, especially network and private-portal, but they remain outside the minimal target structure and were not deleted.
+
+WARNINGS:
+- DNS resolution is currently broken from this host, affecting DNS and HTTPS verification.
+- OPNsense is not reachable/configured on the private network.
+- Cloud Network state from prior audit does not match desired 10.20.x design and worm-opnsense had no private network attachment.
+- Robot/vSwitch cannot be verified without Robot credentials.
+- WireGuard is absent locally; VPN-only OTA/management cannot be enforced safely yet.
+- Public/wildcard listeners adb mDNS and Java UDP need owner confirmation before changes.
+- Storage Box symlink for releases points to releases/root and write test was not successful in this audit context.
+
+FINAL MATRIX:
+- ROBOT: WARN
+- OPNSENSE: FAIL
+- VSWITCH: FAIL
+- VPN: FAIL
+- STORAGE BOX: WARN
+- CADDY: WARN
+- NGINX: PASS
+- COFFEE.PM: WARN
+- LOGS: PASS
+- PORTS: WARN
+- DNS: FAIL
+- TLS: WARN
+- /OPT/WORM: WARN
+
+OVERALL: WARN

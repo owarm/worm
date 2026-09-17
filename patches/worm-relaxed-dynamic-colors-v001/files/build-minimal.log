@@ -1,0 +1,11 @@
+[W][2026-09-15T13:42:39+0200][2563608] logParams():315 Process will be UID/EUID=0 in the global user namespace, and will have user root-level access to files
+[W][2026-09-15T13:42:39+0200][2563608] logParams():325 Process will be GID/EGID=0 in the global user namespace, and will have group root-level access to files
+In file included from build/make/core/config.mk:428:
+In file included from build/make/core/envsetup.mk:51:
+build/make/core/release_config.mk:158: error: No release config set for target; please set TARGET_RELEASE, or if building on the command line use 'lunch <target>-<release>-<build_type>', where release is one of: .
+13:42:39 Error getting 'pre product config' release config: exit status 1
+
+[0;31m#### failed to build some targets (13 seconds) ####
+[0;36mTry enabling incremental analysis for faster builds after changing Android.bp files.
+See http://go/soong-incremental-analysis
+[00m

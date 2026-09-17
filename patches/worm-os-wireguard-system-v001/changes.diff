@@ -1,0 +1,279 @@
+--- a/system/worm/worm_wg/main.cpp
++++ b/system/worm/worm_wg/main.cpp
+@@ -1,37 +1,232 @@
+ #include <errno.h>
++#include <fcntl.h>
+ #include <linux/genetlink.h>
+ #include <linux/netlink.h>
+ #include <linux/wireguard.h>
+ #include <sys/socket.h>
++#include <sys/stat.h>
+ #include <unistd.h>
+ 
++#include <algorithm>
+ #include <cstdio>
+ #include <cstring>
++#include <fstream>
++#include <map>
++#include <set>
++#include <sstream>
++#include <string>
++#include <vector>
++
++namespace {
++
++constexpr char kDefaultConfig[] = "/data/misc/worm/wireguard/worm0.conf";
++constexpr char kSecureConfigPrefix[] = "/data/misc/worm/wireguard/";
++
++std::string trim(const std::string& value) {
++    const char* ws = " \t\r\n";
++    const size_t begin = value.find_first_not_of(ws);
++    if (begin == std::string::npos) return "";
++    const size_t end = value.find_last_not_of(ws);
++    return value.substr(begin, end - begin + 1);
++}
++
++bool starts_with(const std::string& value, const char* prefix) {
++    return value.rfind(prefix, 0) == 0;
++}
++
++bool is_missing_config(const char* path) {
++    return access(path, F_OK) != 0 && errno == ENOENT;
++}
++
++bool file_is_private(const std::string& path) {
++    struct stat st {};
++    if (stat(path.c_str(), &st) != 0) {
++        std::fprintf(stderr, "worm_wg: private key file is not readable by stat: %s\n",
++                     std::strerror(errno));
++        return false;
++    }
++    if (!S_ISREG(st.st_mode)) {
++        std::fprintf(stderr, "worm_wg: private key path is not a regular file\n");
++        return false;
++    }
++    if ((st.st_mode & (S_IRWXG | S_IRWXO)) != 0) {
++        std::fprintf(stderr,
++                     "worm_wg: private key file must not grant group/other access\n");
++        return false;
++    }
++    return true;
++}
+ 
+-int main() {
++int probe_wireguard_uapi() {
+     int fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_GENERIC);
+     if (fd < 0) {
+-        std::fprintf(stderr,
+-                     "worm_wg: NETLINK_GENERIC socket failed: %s\n",
++        std::fprintf(stderr, "worm_wg: NETLINK_GENERIC socket failed: %s\n",
+                      std::strerror(errno));
+         return 1;
+     }
+ 
+-    sockaddr_nl addr{};
++    sockaddr_nl addr {};
+     addr.nl_family = AF_NETLINK;
+-
+     if (bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
+-        std::fprintf(stderr,
+-                     "worm_wg: netlink bind failed: %s\n",
+-                     std::strerror(errno));
++        std::fprintf(stderr, "worm_wg: netlink bind failed: %s\n", std::strerror(errno));
+         close(fd);
+         return 2;
+     }
+ 
++    close(fd);
+     std::printf("worm_wg: Generic Netlink available\n");
+-    std::printf("worm_wg: WireGuard UAPI version=%u\n",
+-                WIREGUARD_GENL_VERSION);
++    std::printf("worm_wg: WireGuard UAPI version=%u\n", WG_GENL_VERSION);
++    return 0;
++}
+ 
+-    close(fd);
++struct ParsedConfig {
++    std::map<std::string, std::string> interface;
++    std::map<std::string, std::string> peer;
++};
++
++bool parse_config(const char* path, ParsedConfig* out) {
++    std::ifstream in(path);
++    if (!in) {
++        std::fprintf(stderr, "worm_wg: failed to open config\n");
++        return false;
++    }
++
++    enum class Section { None, Interface, Peer };
++    Section section = Section::None;
++    std::string line;
++    size_t line_no = 0;
++    while (std::getline(in, line)) {
++        ++line_no;
++        line = trim(line);
++        if (line.empty() || line[0] == '#') continue;
++        if (line == "[Interface]") {
++            section = Section::Interface;
++            continue;
++        }
++        if (line == "[Peer]") {
++            section = Section::Peer;
++            continue;
++        }
++
++        const size_t eq = line.find('=');
++        if (eq == std::string::npos || section == Section::None) {
++            std::fprintf(stderr, "worm_wg: invalid config line %zu\n", line_no);
++            return false;
++        }
++
++        const std::string key = trim(line.substr(0, eq));
++        const std::string value = trim(line.substr(eq + 1));
++        if (key.empty() || value.empty()) {
++            std::fprintf(stderr, "worm_wg: empty key/value at line %zu\n", line_no);
++            return false;
++        }
++
++        if (section == Section::Interface) {
++            out->interface[key] = value;
++        } else {
++            out->peer[key] = value;
++        }
++    }
++    return true;
++}
++
++bool require_keys(const std::map<std::string, std::string>& values,
++                  const std::vector<std::string>& keys,
++                  const char* section) {
++    for (const auto& key : keys) {
++        if (values.find(key) == values.end()) {
++            std::fprintf(stderr, "worm_wg: missing %s.%s\n", section, key.c_str());
++            return false;
++        }
++    }
++    return true;
++}
++
++bool reject_secrets_in_config(const ParsedConfig& config) {
++    if (config.interface.find("PrivateKey") != config.interface.end()) {
++        std::fprintf(stderr, "worm_wg: inline private keys are forbidden; use PrivateKeyFile\n");
++        return false;
++    }
++    if (config.peer.find("PresharedKey") != config.peer.end()
++        || config.peer.find("PresharedKeyFile") != config.peer.end()) {
++        std::fprintf(stderr,
++                     "worm_wg: preshared keys are not accepted by this bootstrap path\n");
++        return false;
++    }
++    return true;
++}
++
++bool validate_config(const char* path, const ParsedConfig& config) {
++    if (!starts_with(path, kSecureConfigPrefix)) {
++        std::fprintf(stderr, "worm_wg: config must live under %s\n", kSecureConfigPrefix);
++        return false;
++    }
++    if (!reject_secrets_in_config(config)) return false;
++    if (!require_keys(config.interface, {"Name", "PrivateKeyFile"}, "Interface")) return false;
++    if (!require_keys(config.peer, {"PublicKey", "Endpoint", "AllowedIPs"}, "Peer")) return false;
++
++    const std::string& key_file = config.interface.at("PrivateKeyFile");
++    if (!starts_with(key_file, kSecureConfigPrefix)) {
++        std::fprintf(stderr, "worm_wg: PrivateKeyFile must live under %s\n", kSecureConfigPrefix);
++        return false;
++    }
++    if (!file_is_private(key_file)) return false;
++    return true;
++}
++
++void print_redacted_summary(const ParsedConfig& config) {
++    const auto optional = [](const auto& values, const char* key) {
++        return values.find(key) != values.end() ? "yes" : "no";
++    };
++    std::printf("worm_wg: config valid\n");
++    std::printf("worm_wg: interface=%s\n", config.interface.at("Name").c_str());
++    std::printf("worm_wg: private_key_file=present-redacted\n");
++    std::printf("worm_wg: peer_public_key=present-redacted\n");
++    std::printf("worm_wg: endpoint=present-redacted\n");
++    std::printf("worm_wg: allowed_ips=present-redacted\n");
++    std::printf("worm_wg: dns=%s\n", optional(config.interface, "DNS"));
++    std::printf("worm_wg: persistent_keepalive=%s\n", optional(config.peer, "PersistentKeepalive"));
++    std::printf("worm_wg: autostart=%s\n", optional(config.interface, "AutoStart"));
++}
++
++}  // namespace
++
++int main(int argc, char** argv) {
++    const char* config_path = kDefaultConfig;
++    bool check_only = true;
++
++    for (int i = 1; i < argc; ++i) {
++        const std::string arg(argv[i]);
++        if (arg == "--probe") {
++            return probe_wireguard_uapi();
++        }
++        if (arg == "--check") {
++            check_only = true;
++            continue;
++        }
++        if (arg == "--config" && i + 1 < argc) {
++            config_path = argv[++i];
++            continue;
++        }
++        std::fprintf(stderr, "usage: worm_wg [--probe] [--check] [--config PATH]\n");
++        return 64;
++    }
++
++    const int probe = probe_wireguard_uapi();
++    if (probe != 0) return probe;
++
++    if (is_missing_config(config_path)) {
++        std::printf("worm_wg: no config present; WireGuard autostart disabled\n");
++        return 0;
++    }
++
++    ParsedConfig config;
++    if (!parse_config(config_path, &config)) return 65;
++    if (!validate_config(config_path, config)) return 66;
++    print_redacted_summary(config);
++
++    if (check_only) {
++        std::printf("worm_wg: check-only mode; no interface changes applied\n");
++    }
+     return 0;
+ }
+--- a/external/wireguard-tools/Android.bp
++++ b/external/wireguard-tools/Android.bp
+@@ -2,6 +2,14 @@
+     name: "wg",
+     srcs: ["src/src/*.c"],
+     local_include_dirs: ["src/src"],
+-    cflags: ["-std=gnu99", "-D_GNU_SOURCE", "-Wall", "-Wextra", "-DRUNSTATEDIR=\"/dev/worm/wireguard\""],
++    cflags: [
++        "-std=gnu99",
++        "-D_GNU_SOURCE",
++        "-Wall",
++        "-Wextra",
++        "-Wno-error=bool-conversion",
++        "-Wno-error=gnu-pointer-arith",
++        "-DRUNSTATEDIR=\"/dev/worm/wireguard\"",
++    ],
+     vendor: true,
+ }
+--- a/vendor/google_devices/frankel/frankel.mk
++++ b/vendor/google_devices/frankel/frankel.mk
+@@ -4830,3 +4830,12 @@
+     WormPragmataProMonoRegular \
+     WormPragmataFontsCustomization
+ 
++# WORM PATCH-004
++# WireGuard kernel-backed tooling and Worm OS safe preflight wrapper.
++PRODUCT_PACKAGES += \
++    wg \
++    worm_wg
++
++PRODUCT_SOONG_NAMESPACES += \
++    external/wireguard-tools \
++    system/worm/worm_wg

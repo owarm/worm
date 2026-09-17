@@ -1,0 +1,11 @@
+apps/com.worm.home/app/src/main/AndroidManifest.xml
+apps/com.worm.home/app/src/main/java/com/worm/MainActivity.java
+apps/com.worm.home/app/src/main/java/com/worm/WormHomeView.java
+apps/com.worm.home/app/src/main/java/com/worm/WormIconRenderer.java
+apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+apps/com.worm.home/app/src/main/res/values/strings.xml
+apps/com.worm.home/app/src/main/res/values/styles.xml
+apps/com.worm.home/app/build.gradle.kts
+apps/com.worm.home/build.gradle.kts
+apps/com.worm.home/settings.gradle.kts

@@ -1,0 +1,151 @@
+PATCH=worm-opt-global-audit-v003
+TIMESTAMP=2026-09-16 03:38:41 CEST +0200
+HOST=antani
+
+== /opt top-level stat ==
+drwx------ root root 4096 2026-09-10 11:34:19.1106605210 /opt/worm-keys -> 
+drwx------ root root 4096 2026-09-14 17:22:27.3833185370 /opt/worm-key-backups -> 
+drwx------ root root 4096 2026-09-14 19:05:34.5659093310 /opt/worm-apps-keys -> 
+drwx--x--- root wormbuild 4096 2026-09-14 17:53:34.6250570870 /opt/worm-release-keys -> 
+drwxr-xr-x root root 4096 2026-09-11 07:24:23.5170383860 /opt/worm-identity -> 
+drwxr-xr-x root root 4096 2026-09-14 22:49:06.8587601210 /opt/.agents -> 
+drwxr-xr-x root root 4096 2026-09-14 22:49:06.8587601210 /opt/.codex -> 
+drwxr-xr-x root root 4096 2026-09-14 22:49:06.8587601210 /opt/.git -> 
+drwxr-xr-x root root 4096 2026-09-15 09:33:52.3157912490 /opt/com.worm -> 
+drwxr-xr-x root root 4096 2026-09-15 15:10:54.8524445130 /opt/android-sdk -> 
+drwxr-xr-x root root 4096 2026-09-15 16:03:11.1634217640 /opt/worm-opnsense -> 
+drwxr-xr-x wormbuild wormbuild 4096 2026-09-15 17:13:56.3872414880 /opt/worm -> 
+
+== filesystems ==
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/md2                             436G  315G  100G  77% /
+/dev/nvme1n1p1                       469G  353G   92G  80% /opt/worm
+//u665326.your-storagebox.de/backup   10T  444G  9.6T   5% /mnt/storage-box-smb
+Filesystem                            Inodes   IUsed    IFree IUse% Mounted on
+/dev/md2                            29089792 4833081 24256711   17% /
+/dev/nvme1n1p1                      31260672 4872497 26388175   16% /opt/worm
+//u665326.your-storagebox.de/backup        0       0        0     - /mnt/storage-box-smb
+
+== findmnt / mountpoints ==
+TARGET                                        SOURCE                              FSTYPE      OPTIONS
+/                                             /dev/md2                            ext4        rw,relatime
+├─/sys                                        sysfs                               sysfs       rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/security                      securityfs                          securityfs  rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/cgroup                            cgroup2                             cgroup2     rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
+│ ├─/sys/fs/pstore                            pstore                              pstore      rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/bpf                               bpf                                 bpf         rw,nosuid,nodev,noexec,relatime,mode=700
+│ ├─/sys/kernel/debug                         debugfs                             debugfs     rw,nosuid,nodev,noexec,relatime
+│ │ └─/sys/kernel/debug/tracing               tracefs                             tracefs     rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/kernel/tracing                       tracefs                             tracefs     rw,nosuid,nodev,noexec,relatime
+│ ├─/sys/fs/fuse/connections                  fusectl                             fusectl     rw,nosuid,nodev,noexec,relatime
+│ └─/sys/kernel/config                        configfs                            configfs    rw,nosuid,nodev,noexec,relatime
+├─/proc                                       proc                                proc        rw,relatime
+│ └─/proc/sys/fs/binfmt_misc                  systemd-1                           autofs      rw,relatime,fd=41,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=10267
+│   └─/proc/sys/fs/binfmt_misc                binfmt_misc                         binfmt_misc rw,nosuid,nodev,noexec,relatime
+├─/dev                                        udev                                devtmpfs    rw,nosuid,relatime,size=32857156k,nr_inodes=8214289,mode=755,inode64
+│ ├─/dev/pts                                  devpts                              devpts      rw,nosuid,noexec,relatime,gid=5,mode=600,ptmxmode=000
+│ ├─/dev/shm                                  tmpfs                               tmpfs       rw,nosuid,nodev,inode64
+│ ├─/dev/mqueue                               mqueue                              mqueue      rw,nosuid,nodev,noexec,relatime
+│ └─/dev/hugepages                            hugetlbfs                           hugetlbfs   rw,nosuid,nodev,relatime,pagesize=2M
+├─/run                                        tmpfs                               tmpfs       rw,nosuid,nodev,noexec,relatime,size=6577664k,mode=755,inode64
+│ ├─/run/lock                                 tmpfs                               tmpfs       rw,nosuid,nodev,noexec,relatime,size=5120k,inode64
+│ ├─/run/user/0                               tmpfs                               tmpfs       rw,nosuid,nodev,relatime,size=6577660k,nr_inodes=1644415,mode=700,inode64
+│ ├─/run/credentials/getty@tty1.service       tmpfs                               tmpfs       ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap
+│ └─/run/credentials/systemd-journald.service tmpfs                               tmpfs       ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap
+├─/tmp                                        tmpfs                               tmpfs       rw,nosuid,nodev,size=32888320k,nr_inodes=1048576,inode64
+├─/boot                                       /dev/md1                            ext3        rw,relatime
+├─/mnt/storage-box                            systemd-1                           autofs      rw,relatime,fd=66,pgrp=1,timeout=600,minproto=5,maxproto=5,direct,pipe_ino=43954944
+├─/opt/worm                                   /dev/nvme1n1p1                      ext4        rw,relatime
+├─/mnt/worm-build                             tmpfs                               tmpfs       rw,nosuid,nodev,noatime,size=35651584k,mode=750,uid=1001,gid=1001,inode64
+├─/mnt/storage-box-smb                        //u665326.your-storagebox.de/backup cifs        rw,relatime,vers=3.0,cache=strict,upcall_target=app,username=u665326,uid=0,noforceuid,gid=0,noforcegid,addr=2a01:04f9:bacc:0003:0300:0000:0000:0528,file_mode=0755,dir_mode=0755,iocharset=utf8,soft,nounix,mapposix,reparse=nfs,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+└─/mnt/worm/build                             tmpfs                               tmpfs       rw,relatime,size=35651584k,inode64
+
+== du /opt/* ==
+4.0K	/opt/worm-keys
+20K	/opt/worm-apps-keys
+28K	/opt/worm-identity
+164K	/opt/worm-opnsense
+296K	/opt/worm-release-keys
+420K	/opt/worm-key-backups
+13M	/opt/com.worm
+492M	/opt/android-sdk
+353G	/opt/worm
+
+== inode count top-level ==
+/opt/android-sdk	14755
+/opt/com.worm	501
+/opt/worm	4872510
+/opt/worm-apps-keys	4
+/opt/worm-identity	7
+/opt/worm-key-backups	65
+/opt/worm-keys	1
+/opt/worm-opnsense	25
+/opt/worm-release-keys	75
+
+== symlinks under /opt top-level/depth2 ==
+/opt/worm-release-keys/frankel -> /opt/worm-release-keys/frankel-new-20260911-050526
+/opt/worm/backups -> /mnt/storage-box-smb/worm/backups
+/opt/worm/releases -> /mnt/storage-box-smb/worm/releases/root
+
+== mountpoint check /opt/* ==
+MOUNTPOINT /opt/worm
+
+== large files >100M ==
+
+== git repos ==
+/opt
+
+== python env candidates ==
+
+== node_modules ==
+
+== archive/install image candidates ==
+2 2026-09-15 09:33 /opt/com.worm/app/build/intermediates/annotation_processor_list/release/javaPreCompileRelease/annotationProcessors.json
+706 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/xml/haptic_feedback_customization_source_rotary_encoder.xml
+862 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/interpolator/screen_rotation.xml
+868 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/interpolator/screen_rotation_alpha_out.xml
+869 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/interpolator/screen_rotation_alpha_in.xml
+891 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/rotation_animation_enter.xml
+891 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/rotation_animation_jump_exit.xml
+893 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/rotation_animation_xfade_exit.xml
+989 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/progress_indeterminate_rotation_material.xml
+1004 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/interpolator-watch/progress_indeterminate_rotation_interpolator.xml
+1015 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim-watch/progress_indeterminate_rotation_material.xml
+1017 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable-mdpi/ic_menu_rotate.png
+1086 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_0_enter.xml
+1088 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_0_exit.xml
+1089 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable/focus_event_rotary_input_background.xml
+1091 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_alpha.xml
+1115 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable-ldpi/ic_menu_rotate.png
+1134 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_180_frame.xml
+1191 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_start_enter.xml
+1191 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_start_exit.xml
+1191 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_start_frame.xml
+1212 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable/ic_qs_auto_rotate.xml
+1418 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_minus_90_exit.xml
+1419 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_plus_90_exit.xml
+1422 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_180_exit.xml
+1441 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_plus_90_enter.xml
+1501 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_minus_90_enter.xml
+1503 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_180_enter.xml
+1639 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_finish_enter.xml
+1643 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_finish_frame.xml
+1808 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable-hdpi/ic_menu_rotate.png
+1944 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/anim/screen_rotate_finish_exit.xml
+2416 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable-xxhdpi/ic_menu_rotate.png
+2600 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/res/drawable-xhdpi/ic_menu_rotate.png
+7870 2026-09-11 07:09 /opt/worm-key-backups/frankel-new-keys-20260911-0709.tar.gz
+10677 2010-01-01 00:00 /opt/android-sdk/cmdline-tools/latest/lib/annotations/annotations.jar
+12467 2010-01-01 00:00 /opt/android-sdk/cmdline-tools/latest/lib/external/com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.jar
+19401 2010-01-01 00:00 /opt/android-sdk/cmdline-tools/latest/lib/external/com/google/errorprone/error_prone_annotations/2.36.0/error_prone_annotations-2.36.0.jar
+24693 2026-09-11 07:22 /opt/worm-key-backups/identity-before-new-keyset-20260911-072222.tar.gz
+24693 2026-09-11 07:24 /opt/worm-key-backups/worm-identity-before-switch-20260911-072452.tar.gz
+29371 2010-01-01 00:00 /opt/android-sdk/cmdline-tools/latest/lib/external/org/jetbrains/annotations/23.0.0/annotations-23.0.0.jar
+38949 2026-09-11 07:19 /opt/worm-key-backups/frankel-release-keys-20260911-071933.tar.gz
+38949 2026-09-11 07:30 /opt/worm-key-backups/frankel-final-keyset-20260911-073018.tar.gz
+39133 2026-09-11 08:03 /opt/worm-key-backups/frankel-before-pkcs8-20260911-080309.tar.gz
+229751 2026-09-14 10:47 /opt/android-sdk/platforms/android-36/data/annotations.zip
+2105514 2026-09-15 09:33 /opt/com.worm/app/build/outputs/apk/release/app-release.apk
+2105514 2026-09-15 09:33 /opt/com.worm/dist/worm-home-rebuild-001.apk
+
+== temp candidates ==

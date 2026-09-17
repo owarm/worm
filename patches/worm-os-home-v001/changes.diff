@@ -1,0 +1,847 @@
+diff --git a/opt/worm/apps/com.worm.home/app/build.gradle.kts b/opt/worm/apps/com.worm.home/app/build.gradle.kts
+new file mode 100644
+index 0000000..05c55aa
+--- /dev/null
++++ b/app/build.gradle.kts
+@@ -0,0 +1,46 @@
++plugins {
++    alias(libs.plugins.android.application)
++    alias(libs.plugins.kotlin.compose)
++}
++
++java {
++    toolchain {
++        languageVersion.set(JavaLanguageVersion.of((System.getenv("WORM_JAVA_TOOLCHAIN") ?: "21").toInt()))
++    }
++}
++
++android {
++    namespace = "com.worm.home"
++    compileSdk = 36
++    buildToolsVersion = "36.1.0"
++
++    defaultConfig {
++        applicationId = "com.worm.home"
++        minSdk = 31
++        targetSdk = 36
++        versionCode = 1
++        versionName = "0.1.0"
++    }
++
++    buildTypes {
++        getByName("release") {
++            isMinifyEnabled = false
++        }
++    }
++
++    buildFeatures {
++        compose = true
++    }
++}
++
++dependencies {
++    implementation(platform(libs.androidx.compose.bom))
++    implementation(libs.androidx.activity.compose)
++    implementation(libs.androidx.compose.foundation)
++    implementation(libs.androidx.compose.material3)
++    implementation(libs.androidx.compose.ui)
++    implementation(libs.androidx.compose.ui.tooling.preview)
++    implementation(libs.androidx.core.ktx)
++
++    debugImplementation(libs.androidx.compose.ui.tooling)
++}
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/AndroidManifest.xml b/opt/worm/apps/com.worm.home/app/src/main/AndroidManifest.xml
+new file mode 100644
+index 0000000..c7de638
+--- /dev/null
++++ b/app/src/main/AndroidManifest.xml
+@@ -0,0 +1,31 @@
++<?xml version="1.0" encoding="utf-8"?>
++<manifest xmlns:android="http://schemas.android.com/apk/res/android">
++
++    <queries>
++        <intent>
++            <action android:name="android.intent.action.MAIN" />
++            <category android:name="android.intent.category.LAUNCHER" />
++        </intent>
++    </queries>
++
++    <application
++        android:allowBackup="false"
++        android:icon="@mipmap/ic_launcher"
++        android:label="@string/app_name"
++        android:roundIcon="@mipmap/ic_launcher_round"
++        android:supportsRtl="true"
++        android:theme="@style/Theme.WormHome">
++
++        <activity
++            android:name=".MainActivity"
++            android:exported="true">
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.HOME" />
++                <category android:name="android.intent.category.DEFAULT" />
++            </intent-filter>
++        </activity>
++
++    </application>
++
++</manifest>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/java/com/worm/home/MainActivity.kt b/opt/worm/apps/com.worm.home/app/src/main/java/com/worm/home/MainActivity.kt
+new file mode 100644
+index 0000000..c3576d9
+--- /dev/null
++++ b/app/src/main/java/com/worm/home/MainActivity.kt
+@@ -0,0 +1,274 @@
++package com.worm.home
++
++import android.content.ComponentName
++import android.content.Intent
++import android.content.pm.PackageManager
++import android.graphics.drawable.Drawable
++import android.os.Bundle
++import android.provider.Settings
++import androidx.activity.ComponentActivity
++import androidx.activity.compose.setContent
++import androidx.activity.enableEdgeToEdge
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.background
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.PaddingValues
++import androidx.compose.foundation.layout.Row
++import androidx.compose.foundation.layout.WindowInsets
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.padding
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.systemBars
++import androidx.compose.foundation.layout.windowInsetsPadding
++import androidx.compose.foundation.lazy.grid.GridCells
++import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
++import androidx.compose.foundation.lazy.grid.items
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.CardDefaults
++import androidx.compose.material3.ElevatedCard
++import androidx.compose.material3.TextButton
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Surface
++import androidx.compose.material3.Text
++import androidx.compose.material3.contentColorFor
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.Immutable
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.asImageBitmap
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import androidx.core.graphics.drawable.toBitmap
++import com.worm.home.ui.theme.WormHomeTheme
++
++@Immutable
++data class HomeApp(
++    val label: String,
++    val packageName: String,
++    val activityName: String,
++    val icon: Drawable
++)
++
++class MainActivity : ComponentActivity() {
++    override fun onCreate(savedInstanceState: Bundle?) {
++        super.onCreate(savedInstanceState)
++        enableEdgeToEdge()
++
++        setContent {
++            WormHomeTheme {
++                WormHome()
++            }
++        }
++    }
++}
++
++@Composable
++fun WormHome() {
++    val context = LocalContext.current
++    var apps by remember { mutableStateOf(emptyList<HomeApp>()) }
++
++    LaunchedEffect(Unit) {
++        apps = context.packageManager.loadLaunchableApps()
++    }
++
++    Surface(
++        modifier = Modifier.fillMaxSize(),
++        color = MaterialTheme.colorScheme.background,
++        contentColor = contentColorFor(MaterialTheme.colorScheme.background)
++    ) {
++        Column(
++            modifier = Modifier
++                .fillMaxSize()
++                .windowInsetsPadding(WindowInsets.systemBars)
++                .padding(20.dp),
++            verticalArrangement = Arrangement.spacedBy(18.dp)
++        ) {
++            HomeHeader(
++                onOpenSettings = {
++                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
++                }
++            )
++
++            FocusCard()
++
++            AppGrid(
++                apps = apps,
++                onLaunch = { app ->
++                    val intent = Intent(Intent.ACTION_MAIN).apply {
++                        addCategory(Intent.CATEGORY_LAUNCHER)
++                        component = ComponentName(app.packageName, app.activityName)
++                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
++                    }
++                    context.startActivity(intent)
++                },
++                modifier = Modifier.weight(1f)
++            )
++        }
++    }
++}
++
++@Composable
++private fun HomeHeader(onOpenSettings: () -> Unit) {
++    Row(
++        modifier = Modifier.fillMaxWidth(),
++        verticalAlignment = Alignment.CenterVertically
++    ) {
++        Column(modifier = Modifier.weight(1f)) {
++            Text(
++                text = "Worm Home",
++                style = MaterialTheme.typography.headlineMedium,
++                color = MaterialTheme.colorScheme.onBackground,
++                fontWeight = FontWeight.SemiBold
++            )
++            Text(
++                text = "Ready",
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.onSurfaceVariant
++            )
++        }
++
++        TextButton(
++            onClick = onOpenSettings,
++            modifier = Modifier
++                .clip(RoundedCornerShape(18.dp))
++                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
++        ) {
++            Text(
++                text = "Settings",
++                color = MaterialTheme.colorScheme.onSurface
++            )
++        }
++    }
++}
++
++@Composable
++private fun FocusCard() {
++    ElevatedCard(
++        modifier = Modifier.fillMaxWidth(),
++        shape = RoundedCornerShape(28.dp),
++        colors = CardDefaults.elevatedCardColors(
++            containerColor = MaterialTheme.colorScheme.surfaceContainer
++        ),
++        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
++    ) {
++        Column(
++            modifier = Modifier.padding(20.dp),
++            verticalArrangement = Arrangement.spacedBy(6.dp)
++        ) {
++            Text(
++                text = "Minimal mode",
++                style = MaterialTheme.typography.titleMedium,
++                color = MaterialTheme.colorScheme.onSurface
++            )
++            Text(
++                text = "System colors, local apps, no network dependency.",
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.onSurfaceVariant
++            )
++        }
++    }
++}
++
++@Composable
++private fun AppGrid(
++    apps: List<HomeApp>,
++    onLaunch: (HomeApp) -> Unit,
++    modifier: Modifier = Modifier
++) {
++    ElevatedCard(
++        modifier = modifier.fillMaxWidth(),
++        shape = RoundedCornerShape(28.dp),
++        colors = CardDefaults.elevatedCardColors(
++            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
++        ),
++        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
++    ) {
++        if (apps.isEmpty()) {
++            Box(
++                modifier = Modifier
++                    .fillMaxSize()
++                    .heightIn(min = 180.dp)
++                    .padding(24.dp),
++                contentAlignment = Alignment.Center
++            ) {
++                Text(
++                    text = "No launchable apps found",
++                    style = MaterialTheme.typography.bodyMedium,
++                    color = MaterialTheme.colorScheme.onSurfaceVariant,
++                    textAlign = TextAlign.Center
++                )
++            }
++        } else {
++            LazyVerticalGrid(
++                columns = GridCells.Adaptive(minSize = 84.dp),
++                modifier = Modifier.fillMaxSize(),
++                contentPadding = PaddingValues(16.dp),
++                horizontalArrangement = Arrangement.spacedBy(12.dp),
++                verticalArrangement = Arrangement.spacedBy(16.dp)
++            ) {
++                items(apps, key = { "${it.packageName}/${it.activityName}" }) { app ->
++                    AppTile(app = app, onClick = { onLaunch(app) })
++                }
++            }
++        }
++    }
++}
++
++@Composable
++private fun AppTile(app: HomeApp, onClick: () -> Unit) {
++    Column(
++        modifier = Modifier
++            .clip(RoundedCornerShape(20.dp))
++            .clickable(onClick = onClick)
++            .padding(horizontal = 8.dp, vertical = 10.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++        verticalArrangement = Arrangement.spacedBy(8.dp)
++    ) {
++        Image(
++            bitmap = app.icon.toBitmap(width = 96, height = 96).asImageBitmap(),
++            contentDescription = null,
++            modifier = Modifier.size(52.dp)
++        )
++        Text(
++            text = app.label,
++            style = MaterialTheme.typography.labelMedium,
++            color = MaterialTheme.colorScheme.onSurface,
++            maxLines = 2,
++            overflow = TextOverflow.Ellipsis,
++            textAlign = TextAlign.Center
++        )
++    }
++}
++
++private fun PackageManager.loadLaunchableApps(): List<HomeApp> {
++    val intent = Intent(Intent.ACTION_MAIN).apply {
++        addCategory(Intent.CATEGORY_LAUNCHER)
++    }
++
++    return queryIntentActivities(intent, 0)
++        .mapNotNull { info ->
++            val activity = info.activityInfo ?: return@mapNotNull null
++            HomeApp(
++                label = info.loadLabel(this).toString(),
++                packageName = activity.packageName,
++                activityName = activity.name,
++                icon = info.loadIcon(this)
++            )
++        }
++        .sortedBy { it.label.lowercase() }
++}
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/java/com/worm/home/ui/theme/Theme.kt b/opt/worm/apps/com.worm.home/app/src/main/java/com/worm/home/ui/theme/Theme.kt
+new file mode 100644
+index 0000000..18b71bb
+--- /dev/null
++++ b/app/src/main/java/com/worm/home/ui/theme/Theme.kt
+@@ -0,0 +1,32 @@
++package com.worm.home.ui.theme
++
++import android.os.Build
++import androidx.compose.foundation.isSystemInDarkTheme
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.darkColorScheme
++import androidx.compose.material3.dynamicDarkColorScheme
++import androidx.compose.material3.dynamicLightColorScheme
++import androidx.compose.material3.lightColorScheme
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.platform.LocalContext
++
++@Composable
++fun WormHomeTheme(
++    darkTheme: Boolean = isSystemInDarkTheme(),
++    content: @Composable () -> Unit
++) {
++    val context = LocalContext.current
++    val colorScheme = when {
++        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
++            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
++        }
++
++        darkTheme -> darkColorScheme()
++        else -> lightColorScheme()
++    }
++
++    MaterialTheme(
++        colorScheme = colorScheme,
++        content = content
++    )
++}
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/drawable/ic_launcher_background.xml b/opt/worm/apps/com.worm.home/app/src/main/res/drawable/ic_launcher_background.xml
+new file mode 100644
+index 0000000..2b2bcb7
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_launcher_background.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="utf-8"?>
++<shape xmlns:android="http://schemas.android.com/apk/res/android"
++    android:shape="rectangle">
++    <solid android:color="#FFB7D7D2" />
++</shape>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/drawable/ic_launcher_foreground.xml b/opt/worm/apps/com.worm.home/app/src/main/res/drawable/ic_launcher_foreground.xml
+new file mode 100644
+index 0000000..fbdb7c3
+--- /dev/null
++++ b/app/src/main/res/drawable/ic_launcher_foreground.xml
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="108dp"
++    android:height="108dp"
++    android:viewportWidth="108"
++    android:viewportHeight="108">
++    <path
++        android:fillColor="#FFFFFFFF"
++        android:pathData="M54,18C63.5,18 73.5,20 80.2,26.8C87,33.5 90,43.5 90,54C90,64.5 87,74.5 80.2,81.2C73.5,88 63.5,90 54,90C44.5,90 34.5,88 27.8,81.2C21,74.5 18,64.5 18,54C18,43.5 21,33.5 27.8,26.8C34.5,20 44.5,18 54,18Z" />
++    <path
++        android:fillColor="#FF3F5F64"
++        android:pathData="M36,54C36,43 44.5,34 55.5,34C65.2,34 72,40.2 72,48.5C72,56.7 65.8,62 58,62H48.5C50.8,66.3 55.3,69 61,69C65.2,69 68.8,67.6 72,65.2V75C68.4,77.2 64,78.4 59,78.4C45.8,78.4 36,68.3 36,54ZM48,53.8H57.5C61.5,53.8 64,51.7 64,48.8C64,45.5 61,43 56.5,43C51.7,43 48.3,47 48,53.8Z" />
++</vector>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml b/opt/worm/apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+new file mode 100644
+index 0000000..b3e26b4
+--- /dev/null
++++ b/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
++    <background android:drawable="@drawable/ic_launcher_background" />
++    <foreground android:drawable="@drawable/ic_launcher_foreground" />
++    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
++</adaptive-icon>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml b/opt/worm/apps/com.worm.home/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+new file mode 100644
+index 0000000..b3e26b4
+--- /dev/null
++++ b/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
++    <background android:drawable="@drawable/ic_launcher_background" />
++    <foreground android:drawable="@drawable/ic_launcher_foreground" />
++    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
++</adaptive-icon>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/values/strings.xml b/opt/worm/apps/com.worm.home/app/src/main/res/values/strings.xml
+new file mode 100644
+index 0000000..21fc16f
+--- /dev/null
++++ b/app/src/main/res/values/strings.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <string name="app_name">Worm Home</string>
++</resources>
+diff --git a/opt/worm/apps/com.worm.home/app/src/main/res/values/themes.xml b/opt/worm/apps/com.worm.home/app/src/main/res/values/themes.xml
+new file mode 100644
+index 0000000..e9dc11d
+--- /dev/null
++++ b/app/src/main/res/values/themes.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <style name="Theme.WormHome" parent="android:style/Theme.Material.Light.NoActionBar">
++        <item name="android:windowNoTitle">true</item>
++        <item name="android:windowActionBar">false</item>
++        <item name="android:windowLightStatusBar">false</item>
++        <item name="android:navigationBarColor">@android:color/transparent</item>
++        <item name="android:statusBarColor">@android:color/transparent</item>
++    </style>
++</resources>
+diff --git a/opt/worm/apps/com.worm.home/build.gradle.kts b/opt/worm/apps/com.worm.home/build.gradle.kts
+new file mode 100644
+index 0000000..1602d6a
+--- /dev/null
++++ b/build.gradle.kts
+@@ -0,0 +1,12 @@
++plugins {
++    alias(libs.plugins.android.application) apply false
++    alias(libs.plugins.kotlin.compose) apply false
++}
++
++allprojects {
++    tasks.withType<JavaCompile> {
++        options.compilerArgs.addAll(
++            listOf("-Xlint", "-Xlint:-classfile", "-Xlint:-rawtypes", "-Xlint:-serial")
++        )
++    }
++}
+diff --git a/opt/worm/apps/com.worm.home/gradle.properties b/opt/worm/apps/com.worm.home/gradle.properties
+new file mode 100644
+index 0000000..e41ca1c
+--- /dev/null
++++ b/gradle.properties
+@@ -0,0 +1,7 @@
++org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
++org.gradle.parallel=true
++org.gradle.caching=true
++
++android.useAndroidX=true
++
++kotlin.code.style=official
+diff --git a/opt/worm/apps/com.worm.home/gradle/libs.versions.toml b/opt/worm/apps/com.worm.home/gradle/libs.versions.toml
+new file mode 100644
+index 0000000..ed6b639
+--- /dev/null
++++ b/gradle/libs.versions.toml
+@@ -0,0 +1,20 @@
++[versions]
++activityCompose = "1.12.4"
++agp = "9.2.0"
++composeBom = "2026.06.00"
++coreKtx = "1.18.0"
++kotlin = "2.3.21"
++
++[libraries]
++androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
++androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
++androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
++androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
++androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
++androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
++androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
++androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
++
++[plugins]
++android-application = { id = "com.android.application", version.ref = "agp" }
++kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+diff --git a/opt/worm/apps/com.worm.home/gradle/wrapper/gradle-wrapper.properties b/opt/worm/apps/com.worm.home/gradle/wrapper/gradle-wrapper.properties
+new file mode 100644
+index 0000000..dbe66e1
+--- /dev/null
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -0,0 +1,10 @@
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++distributionSha256Sum=9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14
++distributionUrl=https\://services.gradle.org/distributions/gradle-9.6.1-bin.zip
++networkTimeout=10000
++retries=0
++retryBackOffMs=500
++validateDistributionUrl=true
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
+diff --git a/opt/worm/apps/com.worm.home/gradlew b/opt/worm/apps/com.worm.home/gradlew
+new file mode 100755
+index 0000000..b9bb139
+--- /dev/null
++++ b/gradlew
+@@ -0,0 +1,248 @@
++#!/bin/sh
++
++#
++# Copyright © 2015 the original authors.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#      https://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++# SPDX-License-Identifier: Apache-2.0
++#
++
++##############################################################################
++#
++#   Gradle start up script for POSIX generated by Gradle.
++#
++#   Important for running:
++#
++#   (1) You need a POSIX-compliant shell to run this script. If your /bin/sh is
++#       noncompliant, but you have some other compliant shell such as ksh or
++#       bash, then to run this script, type that shell name before the whole
++#       command line, like:
++#
++#           ksh Gradle
++#
++#       Busybox and similar reduced shells will NOT work, because this script
++#       requires all of these POSIX shell features:
++#         * functions;
++#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,
++#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;
++#         * compound commands having a testable exit status, especially «case»;
++#         * various built-in commands including «command», «set», and «ulimit».
++#
++#   Important for patching:
++#
++#   (2) This script targets any POSIX shell, so it avoids extensions provided
++#       by Bash, Ksh, etc; in particular arrays are avoided.
++#
++#       The "traditional" practice of packing multiple parameters into a
++#       space-separated string is a well documented source of bugs and security
++#       problems, so this is (mostly) avoided, by progressively accumulating
++#       options in "$@", and eventually passing that to Java.
++#
++#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
++#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
++#       see the in-line comments for details.
++#
++#       There are tweaks for specific operating systems such as AIX, CygWin,
++#       Darwin, MinGW, and NonStop.
++#
++#   (3) This script is generated from the Groovy template
++#       https://github.com/gradle/gradle/blob/3d91ce3b8caaf77ad09f381f43615b715b53f72c/platforms/jvm/plugins-application/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
++#       within the Gradle project.
++#
++#       You can find Gradle at https://github.com/gradle/gradle/.
++#
++##############################################################################
++
++# Attempt to set APP_HOME
++
++# Resolve links: $0 may be a link
++app_path=$0
++
++# Need this for daisy-chained symlinks.
++while
++    APP_HOME=${app_path%"${app_path##*/}"}  # leaves a trailing /; empty if no leading path
++    [ -h "$app_path" ]
++do
++    ls=$( ls -ld "$app_path" )
++    link=${ls#*' -> '}
++    case $link in             #(
++      /*)   app_path=$link ;; #(
++      *)    app_path=$APP_HOME$link ;;
++    esac
++done
++
++# This is normally unused
++# shellcheck disable=SC2034
++APP_BASE_NAME=${0##*/}
++# Discard cd standard output in case $CDPATH is set (https://github.com/gradle/gradle/issues/25036)
++APP_HOME=$( cd -P "${APP_HOME:-./}" > /dev/null && printf '%s\n' "$PWD" ) || exit
++
++# Use the maximum available, or set MAX_FD != -1 to use that value.
++MAX_FD=maximum
++
++warn () {
++    echo "$*"
++} >&2
++
++die () {
++    echo
++    echo "$*"
++    echo
++    exit 1
++} >&2
++
++# OS specific support (must be 'true' or 'false').
++cygwin=false
++msys=false
++darwin=false
++nonstop=false
++case "$( uname )" in                #(
++  CYGWIN* )         cygwin=true  ;; #(
++  Darwin* )         darwin=true  ;; #(
++  MSYS* | MINGW* )  msys=true    ;; #(
++  NONSTOP* )        nonstop=true ;;
++esac
++
++
++
++# Determine the Java command to use to start the JVM.
++if [ -n "$JAVA_HOME" ] ; then
++    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
++        # IBM's JDK on AIX uses strange locations for the executables
++        JAVACMD=$JAVA_HOME/jre/sh/java
++    else
++        JAVACMD=$JAVA_HOME/bin/java
++    fi
++    if [ ! -x "$JAVACMD" ] ; then
++        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++else
++    JAVACMD=java
++    if ! command -v java >/dev/null 2>&1
++    then
++        die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++fi
++
++# Increase the maximum file descriptors if we can.
++if ! "$cygwin" && ! "$darwin" && ! "$nonstop" ; then
++    case $MAX_FD in #(
++      max*)
++        # In POSIX sh, ulimit -H is undefined. That's why the result is checked to see if it worked.
++        # shellcheck disable=SC2039,SC3045
++        MAX_FD=$( ulimit -H -n ) ||
++            warn "Could not query maximum file descriptor limit"
++    esac
++    case $MAX_FD in  #(
++      '' | soft) :;; #(
++      *)
++        # In POSIX sh, ulimit -n is undefined. That's why the result is checked to see if it worked.
++        # shellcheck disable=SC2039,SC3045
++        ulimit -n "$MAX_FD" ||
++            warn "Could not set maximum file descriptor limit to $MAX_FD"
++    esac
++fi
++
++# Collect all arguments for the java command, stacking in reverse order:
++#   * args from the command line
++#   * the main class name
++#   * -classpath
++#   * -D...appname settings
++#   * --module-path (only if needed)
++#   * DEFAULT_JVM_OPTS, JAVA_OPTS, and GRADLE_OPTS environment variables.
++
++# For Cygwin or MSYS, switch paths to Windows format before running java
++if "$cygwin" || "$msys" ; then
++    APP_HOME=$( cygpath --path --mixed "$APP_HOME" )
++
++    JAVACMD=$( cygpath --unix "$JAVACMD" )
++
++    # Now convert the arguments - kludge to limit ourselves to /bin/sh
++    for arg do
++        if
++            case $arg in                                #(
++              -*)   false ;;                            # don't mess with options #(
++              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
++                    [ -e "$t" ] ;;                      #(
++              *)    false ;;
++            esac
++        then
++            arg=$( cygpath --path --ignore --mixed "$arg" )
++        fi
++        # Roll the args list around exactly as many times as the number of
++        # args, so each arg winds up back in the position where it started, but
++        # possibly modified.
++        #
++        # NB: a `for` loop captures its iteration list before it begins, so
++        # changing the positional parameters here affects neither the number of
++        # iterations, nor the values presented in `arg`.
++        shift                   # remove old arg
++        set -- "$@" "$arg"      # push replacement arg
++    done
++fi
++
++
++# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
++
++# Collect all arguments for the java command:
++#   * DEFAULT_JVM_OPTS, JAVA_OPTS, and optsEnvironmentVar are not allowed to contain shell fragments,
++#     and any embedded shellness will be escaped.
++#   * For example: A user cannot expect ${Hostname} to be expanded, as it is an environment variable and will be
++#     treated as '${Hostname}' itself on the command line.
++
++set -- \
++        "-Dorg.gradle.appname=$APP_BASE_NAME" \
++        -jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
++        "$@"
++
++# Stop when "xargs" is not available.
++if ! command -v xargs >/dev/null 2>&1
++then
++    die "xargs is not available"
++fi
++
++# Use "xargs" to parse quoted args.
++#
++# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
++#
++# In Bash we could simply go:
++#
++#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
++#   set -- "${ARGS[@]}" "$@"
++#
++# but POSIX shell has neither arrays nor command substitution, so instead we
++# post-process each arg (as a line of input to sed) to backslash-escape any
++# character that might be a shell metacharacter, then use eval to reverse
++# that process (while maintaining the separation between arguments), and wrap
++# the whole thing up as a single "set" statement.
++#
++# This will of course break if any of these variables contains a newline or
++# an unmatched quote.
++#
++
++eval "set -- $(
++        printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
++        xargs -n1 |
++        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
++        tr '\n' ' '
++    )" '"$@"'
++
++exec "$JAVACMD" "$@"
+diff --git a/opt/worm/apps/com.worm.home/local.properties b/opt/worm/apps/com.worm.home/local.properties
+new file mode 100644
+index 0000000..daae45e
+--- /dev/null
++++ b/local.properties
+@@ -0,0 +1 @@
++sdk.dir=/opt/android-sdk
+diff --git a/opt/worm/apps/com.worm.home/settings.gradle.kts b/opt/worm/apps/com.worm.home/settings.gradle.kts
+new file mode 100644
+index 0000000..7534cb8
+--- /dev/null
++++ b/settings.gradle.kts
+@@ -0,0 +1,20 @@
++pluginManagement {
++    repositories {
++        google()
++        mavenCentral()
++        gradlePluginPortal()
++    }
++}
++
++dependencyResolutionManagement {
++    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
++
++    repositories {
++        google()
++        mavenCentral()
++    }
++}
++
++rootProject.name = "WormHome"
++
++include(":app")

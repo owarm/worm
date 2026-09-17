@@ -1,0 +1,301 @@
+diff --git a/frameworks/libs/systemui/monet/src/com/android/systemui/monet/ColorScheme.java b/frameworks/libs/systemui/monet/src/com/android/systemui/monet/ColorScheme.java
+--- monet/src/com/android/systemui/monet/ColorScheme.java
++++ monet/src/com/android/systemui/monet/ColorScheme.java
+@@ -54,6 +54,7 @@ import java.util.stream.Collectors;
+ public class ColorScheme {
+     public static final int GOOGLE_BLUE = 0xFF1b6ef3;
+     public static final float CONTRAST = 0.0f;
++    private static final boolean WORM_RELAXED_DYNAMIC_COLORS_DEFAULT = true;
+     private static final float ACCENT1_CHROMA = 48.0f;
+     private static final int MIN_CHROMA = 5;
+ 
+@@ -81,7 +82,39 @@ public class ColorScheme {
+     public ColorScheme(@NonNull @Size(min = 1) List<Integer> seeds, boolean isDark,
+             @ThemeStyle.Type int style,
+             double contrastLevel, SpecVersion specVersion, Platform platform) {
++        this(seeds, isDark, style, contrastLevel, specVersion, platform,
++                WORM_RELAXED_DYNAMIC_COLORS_DEFAULT);
++    }
++
++    public ColorScheme(@ColorInt int seed, boolean isDark, @ThemeStyle.Type int style,
++            double contrastLevel) {
++        this(seed, isDark, style, contrastLevel, SpecVersion.SPEC_2026,
++                DynamicScheme.DEFAULT_PLATFORM);
++    }
++
++    public ColorScheme(@ColorInt int seed, boolean isDark, @ThemeStyle.Type int style,
++            double contrastLevel, boolean relaxedDynamicColors) {
++        this(List.of(seed), isDark, style, contrastLevel, SpecVersion.SPEC_2026,
++                DynamicScheme.DEFAULT_PLATFORM, relaxedDynamicColors);
++    }
++
++    public ColorScheme(@ColorInt int seed, boolean darkTheme) {
++        this(seed, darkTheme, ThemeStyle.TONAL_SPOT);
++    }
++
++    public ColorScheme(@ColorInt int seed, boolean darkTheme, @ThemeStyle.Type int style) {
++        this(seed, darkTheme, style, 0.0);
++    }
++
++    public ColorScheme(WallpaperColors wallpaperColors, boolean darkTheme,
++            @ThemeStyle.Type int style) {
++        this(getSeedColors(wallpaperColors, style != ThemeStyle.CONTENT), darkTheme, style, 0.0,
++                SpecVersion.SPEC_2026, DynamicScheme.DEFAULT_PLATFORM);
++    }
+ 
++    public ColorScheme(@NonNull @Size(min = 1) List<Integer> seeds, boolean isDark,
++            @ThemeStyle.Type int style, double contrastLevel, SpecVersion specVersion,
++            Platform platform, boolean relaxedDynamicColors) {
+         this.mSeeds = seeds;
+         this.mIsDark = isDark;
+         this.mStyle = style;
+@@ -101,7 +134,7 @@ public class ColorScheme {
+                                     : seed));
+         }).toList();
+ 
+-        mMaterialScheme = switch (style) {
++        DynamicScheme materialScheme = switch (style) {
+             case ThemeStyle.SPRITZ -> new SchemeNeutral(seedHcts, isDark, contrastLevel,
+                     specVersion,
+                     platform);
+@@ -130,6 +163,10 @@ public class ColorScheme {
+             default -> throw new IllegalArgumentException("Unknown style: " + style);
+         };
+ 
++        mMaterialScheme = relaxedDynamicColors
++                ? new RelaxedDynamicScheme(materialScheme, seedHcts)
++                : materialScheme;
++
+         mAccent1 = new TonalPalette(mMaterialScheme.primaryPalette);
+         mAccent2 = new TonalPalette(mMaterialScheme.secondaryPalette);
+         mAccent3 = new TonalPalette(mMaterialScheme.tertiaryPalette);
+@@ -138,26 +175,6 @@ public class ColorScheme {
+         mError = new TonalPalette(mMaterialScheme.errorPalette);
+     }
+ 
+-    public ColorScheme(@ColorInt int seed, boolean isDark, @ThemeStyle.Type int style,
+-            double contrastLevel) {
+-        this(seed, isDark, style, contrastLevel, SpecVersion.SPEC_2026,
+-                DynamicScheme.DEFAULT_PLATFORM);
+-    }
+-
+-    public ColorScheme(@ColorInt int seed, boolean darkTheme) {
+-        this(seed, darkTheme, ThemeStyle.TONAL_SPOT);
+-    }
+-
+-    public ColorScheme(@ColorInt int seed, boolean darkTheme, @ThemeStyle.Type int style) {
+-        this(seed, darkTheme, style, 0.0);
+-    }
+-
+-    public ColorScheme(WallpaperColors wallpaperColors, boolean darkTheme,
+-            @ThemeStyle.Type int style) {
+-        this(getSeedColors(wallpaperColors, style != ThemeStyle.CONTENT), darkTheme, style, 0.0,
+-                SpecVersion.SPEC_2026, DynamicScheme.DEFAULT_PLATFORM);
+-    }
+-
+     public ColorScheme(WallpaperColors wallpaperColors, boolean darkTheme) {
+         this(wallpaperColors, darkTheme, ThemeStyle.TONAL_SPOT);
+     }
+
+diff --git a/monet/src/com/android/systemui/monet/RelaxedDynamicScheme.java b/monet/src/com/android/systemui/monet/RelaxedDynamicScheme.java
+new file mode 100644
+index 00000000..5e514882
+--- /dev/null
++++ b/monet/src/com/android/systemui/monet/RelaxedDynamicScheme.java
+@@ -0,0 +1,133 @@
++/*
++ * Copyright (C) 2026 Worm OS
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ */
++
++package com.android.systemui.monet;
++
++import com.google.ux.material.libmonet.dynamiccolor.DynamicScheme;
++import com.google.ux.material.libmonet.hct.Hct;
++import com.google.ux.material.libmonet.palettes.TonalPalette;
++
++import java.util.List;
++import java.util.Optional;
++
++/**
++ * Worm OS Relaxed identity layer for Material You dynamic colors.
++ *
++ * <p>The wallpaper seed remains the source color, but palette hue/chroma are pulled toward
++ * official Relaxed colors before Material dynamic tokens are resolved.
++ */
++public final class RelaxedDynamicScheme extends DynamicScheme {
++    public static final int RELAXED_BACKGROUND = 0xFF2F363D;
++    public static final int RELAXED_SURFACE = 0xFF3B444C;
++    public static final int RELAXED_FOREGROUND = 0xFFE1DED8;
++    public static final int RELAXED_GRAY = 0xFF73736E;
++    public static final int RELAXED_CYAN = 0xFF83B9B5;
++    public static final int RELAXED_BLUE = 0xFF8AAED0;
++    public static final int RELAXED_GREEN = 0xFF9DBF9A;
++    public static final int RELAXED_YELLOW_ORANGE = 0xFFD4B77A;
++    public static final int RELAXED_RED = 0xFFD49A96;
++
++    private static final double ACCENT_RELAXED_WEIGHT = 0.78;
++    private static final double NEUTRAL_RELAXED_WEIGHT = 0.88;
++    private static final double MIN_ACCENT_CHROMA = 18.0;
++    private static final double MAX_ACCENT_CHROMA = 34.0;
++    private static final double MAX_NEUTRAL_CHROMA = 8.0;
++    private static final double MAX_NEUTRAL_VARIANT_CHROMA = 12.0;
++
++    public RelaxedDynamicScheme(DynamicScheme baseScheme, List<Hct> wallpaperSeedHcts) {
++        super(
++                wallpaperSeedHcts,
++                baseScheme.variant,
++                baseScheme.isDark,
++                baseScheme.contrastLevel,
++                baseScheme.platform,
++                baseScheme.specVersion,
++                accentPalette(wallpaperSeedHcts.getFirst(), RELAXED_CYAN),
++                accentPalette(wallpaperSeedHcts.getFirst(), RELAXED_BLUE),
++                tertiaryPalette(wallpaperSeedHcts.getFirst()),
++                neutralPalette(wallpaperSeedHcts.getFirst(), RELAXED_BACKGROUND),
++                neutralVariantPalette(wallpaperSeedHcts.getFirst()),
++                Optional.of(errorPalette(wallpaperSeedHcts.getFirst())));
++    }
++
++    private static TonalPalette accentPalette(Hct wallpaperSeed, int relaxedColor) {
++        Hct relaxed = Hct.fromInt(relaxedColor);
++        double hue = harmonizedHue(wallpaperSeed.getHue(), relaxed.getHue(),
++                ACCENT_RELAXED_WEIGHT);
++        double chroma = clamp(
++                relaxed.getChroma() * ACCENT_RELAXED_WEIGHT
++                        + wallpaperSeed.getChroma() * (1.0 - ACCENT_RELAXED_WEIGHT),
++                MIN_ACCENT_CHROMA,
++                MAX_ACCENT_CHROMA);
++        return TonalPalette.fromHueAndChroma(hue, chroma);
++    }
++
++    private static TonalPalette neutralPalette(Hct wallpaperSeed, int relaxedColor) {
++        Hct relaxed = Hct.fromInt(relaxedColor);
++        Hct surface = Hct.fromInt(RELAXED_SURFACE);
++        double hue = harmonizedHue(wallpaperSeed.getHue(), relaxed.getHue(),
++                NEUTRAL_RELAXED_WEIGHT);
++        double chroma = clamp(
++                ((relaxed.getChroma() + surface.getChroma()) / 2.0) * NEUTRAL_RELAXED_WEIGHT
++                        + wallpaperSeed.getChroma() * 0.08,
++                4.0,
++                MAX_NEUTRAL_CHROMA);
++        return TonalPalette.fromHueAndChroma(hue, chroma);
++    }
++
++    private static TonalPalette tertiaryPalette(Hct wallpaperSeed) {
++        Hct green = Hct.fromInt(RELAXED_GREEN);
++        Hct yellowOrange = Hct.fromInt(RELAXED_YELLOW_ORANGE);
++        double relaxedHue = harmonizedHue(green.getHue(), yellowOrange.getHue(), 0.72);
++        double hue = harmonizedHue(wallpaperSeed.getHue(), relaxedHue, ACCENT_RELAXED_WEIGHT);
++        double relaxedChroma = green.getChroma() * 0.72 + yellowOrange.getChroma() * 0.28;
++        double chroma = clamp(
++                relaxedChroma * ACCENT_RELAXED_WEIGHT + wallpaperSeed.getChroma() * 0.12,
++                MIN_ACCENT_CHROMA,
++                MAX_ACCENT_CHROMA);
++        return TonalPalette.fromHueAndChroma(hue, chroma);
++    }
++
++    private static TonalPalette neutralVariantPalette(Hct wallpaperSeed) {
++        Hct foreground = Hct.fromInt(RELAXED_FOREGROUND);
++        Hct gray = Hct.fromInt(RELAXED_GRAY);
++        double relaxedHue = harmonizedHue(gray.getHue(), foreground.getHue(), 0.65);
++        double hue = harmonizedHue(wallpaperSeed.getHue(), relaxedHue, NEUTRAL_RELAXED_WEIGHT);
++        double relaxedChroma = foreground.getChroma() * 0.6 + gray.getChroma() * 0.4;
++        double chroma = clamp(
++                relaxedChroma * NEUTRAL_RELAXED_WEIGHT + wallpaperSeed.getChroma() * 0.08,
++                4.0,
++                MAX_NEUTRAL_VARIANT_CHROMA);
++        return TonalPalette.fromHueAndChroma(hue, chroma);
++    }
++
++    private static TonalPalette errorPalette(Hct wallpaperSeed) {
++        Hct relaxed = Hct.fromInt(RELAXED_RED);
++        double hue = harmonizedHue(wallpaperSeed.getHue(), relaxed.getHue(),
++                ACCENT_RELAXED_WEIGHT);
++        double chroma = clamp(
++                relaxed.getChroma() * ACCENT_RELAXED_WEIGHT
++                        + wallpaperSeed.getChroma() * 0.08,
++                18.0,
++                32.0);
++        return TonalPalette.fromHueAndChroma(hue, chroma);
++    }
++
++    private static double harmonizedHue(
++            double wallpaperHue, double relaxedHue, double relaxedWeight) {
++        double delta = ((wallpaperHue - relaxedHue + 540.0) % 360.0) - 180.0;
++        double hue = relaxedHue + delta * (1.0 - relaxedWeight);
++        return (hue + 360.0) % 360.0;
++    }
++
++    private static double clamp(double value, double min, double max) {
++        return Math.max(min, Math.min(max, value));
++    }
++}
+
+diff --git a/frameworks/base/packages/SystemUI/src/com/android/systemui/theme/ThemeOverlayController.java b/frameworks/base/packages/SystemUI/src/com/android/systemui/theme/ThemeOverlayController.java
+--- packages/SystemUI/src/com/android/systemui/theme/ThemeOverlayController.java
++++ packages/SystemUI/src/com/android/systemui/theme/ThemeOverlayController.java
+@@ -128,6 +128,9 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
+     private static final boolean DEBUG = false;
+ 
+     private static final String KEY_COLOR_PALETTE_VERSION = "global_color_palette_version";
++    private static final String WORM_RELAXED_DYNAMIC_COLORS = "worm_relaxed_dynamic_colors";
++    private static final int WORM_COLOR_MODE_STANDARD = 0;
++    private static final int WORM_COLOR_MODE_RELAXED = 1;
+ 
+     // The wallpaper colors source is always the home wallpaper.
+     private static final int WALLPAPER_COLORS_SOURCE = WallpaperManager.FLAG_SYSTEM;
+@@ -519,6 +522,20 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
+                     }
+                 },
+                 UserHandle.USER_ALL);
++        mSecureSettings.registerContentObserverForUserSync(
++                WORM_RELAXED_DYNAMIC_COLORS,
++                false,
++                new ContentObserver(mBgHandler) {
++                    @Override
++                    public void onChange(boolean selfChange, Collection<Uri> collection, int flags,
++                            int userId) {
++                        if (mUserTracker.getUserId() != userId) {
++                            return;
++                        }
++                        reevaluateSystemTheme(true /* forceReload */);
++                    }
++                },
++                UserHandle.USER_ALL);
+         int userId = mUserTracker.getUserId();
+         UiModeManager uiModeManager = mUiModeManagerProvider.forUser(UserHandle.of(userId));
+         uiModeManager.addContrastChangeListener(mMainExecutor, mContrastChangeListener);
+@@ -686,8 +703,11 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
+     }
+ 
+     private void createOverlays(int color) {
+-        mDarkColorScheme = new ColorScheme(color, true /* isDark */, mThemeStyle, mContrast);
+-        mLightColorScheme = new ColorScheme(color, false /* isDark */, mThemeStyle, mContrast);
++        boolean relaxedDynamicColors = isWormRelaxedDynamicColorsEnabled();
++        mDarkColorScheme = new ColorScheme(color, true /* isDark */, mThemeStyle, mContrast,
++                relaxedDynamicColors);
++        mLightColorScheme = new ColorScheme(color, false /* isDark */, mThemeStyle, mContrast,
++                relaxedDynamicColors);
+         mColorScheme = isNightMode() ? mDarkColorScheme : mLightColorScheme;
+ 
+         mAccentOverlay = newFabricatedOverlay("accent");
+@@ -705,6 +725,13 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
+         assignColorsToOverlay(mDynamicOverlay, DynamicColors.getCustomColorsMapped());
+     }
+ 
++    private boolean isWormRelaxedDynamicColorsEnabled() {
++        return mSecureSettings.getIntForUser(
++                WORM_RELAXED_DYNAMIC_COLORS,
++                WORM_COLOR_MODE_RELAXED,
++                mUserTracker.getUserId()) == WORM_COLOR_MODE_RELAXED;
++    }
++
+     private void assignColorsToOverlay(FabricatedOverlay overlay,
+             List<Pair<String, DynamicColor>> colors) {
+         colors.forEach(p -> {

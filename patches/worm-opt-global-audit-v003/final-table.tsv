@@ -1,0 +1,13 @@
+PATH	SIZE BEFORE	ACTION	DESTINATION	SIZE AFTER	REASON
+/opt/.agents	4.0K	DELETE_SAFE	-	ABSENT	Empty top-level metadata dir, removed with rmdir only because empty
+/opt/.codex	4.0K	DELETE_SAFE	-	ABSENT	Empty top-level metadata dir, removed with rmdir only because empty
+/opt/.git	4.0K	DELETE_SAFE	-	ABSENT	Empty incomplete git metadata dir; /opt is not a valid git repo
+/opt/android-sdk	492M	KEEP_BUILD	-	492M	Protected Android SDK/toolchain
+/opt/com.worm	13M	PARTIAL_CLEAN	/mnt/storage-box-smb/worm/archive-opt/releases/com.worm/dist-20260916-034424	2.1M	Kept local because keys/keystores exist; moved dist, removed build/cache
+/opt/worm	353G	KEEP_MOUNT	-	353G	Protected active Worm mount/service/build tree; not internally cleaned
+/opt/worm-apps-keys	20K	KEEP_SECRET	-	20K	Contains app signing keys/secrets
+/opt/worm-identity	28K	KEEP_SECRET	-	28K	Identity material
+/opt/worm-key-backups	420K	KEEP_SECRET	-	420K	Key backups; not moved to Storage Box
+/opt/worm-keys	4.0K	KEEP_SECRET	-	4.0K	Private keys directory
+/opt/worm-opnsense	164K	KEEP_SYSTEM	-	164K	Explicitly protected OPNsense path
+/opt/worm-release-keys	296K	KEEP_SECRET	-	296K	Release signing keys; not moved to Storage Box

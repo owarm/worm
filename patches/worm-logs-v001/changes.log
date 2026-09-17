@@ -1,0 +1,11 @@
+worm-logs-v001 changes
+- Created /opt/worm/services/logs Python WSGI app with SQLite metadata DB.
+- Created /opt/worm/services/logs/.venv and installed gunicorn 26.2.0.
+- Imported existing /opt/worm/logs/*.log metadata into SQLite.
+- Legacy logs outside runs are exposed through hardlinks under /opt/worm/logs/runs/legacy, without moving originals or duplicating file data.
+- Added /usr/local/bin/worm-run global command.
+- Added wormlogs system user and worm-logs.service bound to 127.0.0.1:8765.
+- Updated nginx VPN config with logs.coffee.pm reverse proxy to 127.0.0.1:8765.
+- Updated nginx public guard config to include logs.coffee.pm with existing 403 policy.
+- Backed up nginx configs as *.bak-worm-logs-v001-* before modification.
+- Added rollback.sh.

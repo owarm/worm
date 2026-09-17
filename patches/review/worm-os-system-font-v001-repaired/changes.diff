@@ -1,0 +1,275 @@
+diff --git a/grapheneos/vendor/worm/fonts/config/fonts_customization.xml b/grapheneos/vendor/worm/fonts/config/fonts_customization.xml
+new file mode 100644
+--- /dev/null
++++ b/grapheneos/vendor/worm/fonts/config/fonts_customization.xml
+@@ -0,0 +1,218 @@
++<?xml version="1.0" encoding="utf-8"?>
++<fonts-modification version="1">
++    <family-list customizationType="new-named-family" name="worm-system-primary">
++        <family>
++            <font weight="400" style="normal">PragmataPro-Regular.ttf</font>
++        </family>
++        <family>
++            <font weight="100" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="100" />
++            </font>
++            <font weight="200" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="200" />
++            </font>
++            <font weight="300" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="300" />
++            </font>
++            <font weight="400" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="400" />
++            </font>
++            <font weight="500" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="500" />
++            </font>
++            <font weight="600" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="600" />
++            </font>
++            <font weight="700" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="700" />
++            </font>
++            <font weight="800" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="800" />
++            </font>
++            <font weight="900" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="900" />
++            </font>
++            <font weight="100" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="100" />
++            </font>
++            <font weight="200" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="200" />
++            </font>
++            <font weight="300" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="300" />
++            </font>
++            <font weight="400" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="400" />
++            </font>
++            <font weight="500" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="500" />
++            </font>
++            <font weight="600" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="600" />
++            </font>
++            <font weight="700" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="700" />
++            </font>
++            <font weight="800" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="800" />
++            </font>
++            <font weight="900" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="900" />
++            </font>
++        </family>
++    </family-list>
++
++    <family-list customizationType="new-named-family" name="sans-serif">
++        <family>
++            <font weight="400" style="normal">PragmataPro-Regular.ttf</font>
++        </family>
++        <family>
++            <font weight="100" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="100" />
++            </font>
++            <font weight="200" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="200" />
++            </font>
++            <font weight="300" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="300" />
++            </font>
++            <font weight="400" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="400" />
++            </font>
++            <font weight="500" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="500" />
++            </font>
++            <font weight="600" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="600" />
++            </font>
++            <font weight="700" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="700" />
++            </font>
++            <font weight="800" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="800" />
++            </font>
++            <font weight="900" style="normal">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="0" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="900" />
++            </font>
++            <font weight="100" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="100" />
++            </font>
++            <font weight="200" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="200" />
++            </font>
++            <font weight="300" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="300" />
++            </font>
++            <font weight="400" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="400" />
++            </font>
++            <font weight="500" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="500" />
++            </font>
++            <font weight="600" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="600" />
++            </font>
++            <font weight="700" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="700" />
++            </font>
++            <font weight="800" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="800" />
++            </font>
++            <font weight="900" style="italic">Roboto-Regular.ttf
++                <axis tag="ital" stylevalue="1" />
++                <axis tag="wdth" stylevalue="100" />
++                <axis tag="wght" stylevalue="900" />
++            </font>
++        </family>
++    </family-list>
++
++    <family-list customizationType="new-named-family" name="worm-system-monospace">
++        <family>
++            <font weight="400" style="normal">PragmataProMono-Regular.ttf</font>
++        </family>
++    </family-list>
++
++    <family-list customizationType="new-named-family" name="monospace">
++        <family>
++            <font weight="400" style="normal">PragmataProMono-Regular.ttf</font>
++        </family>
++        <family>
++            <font weight="400" style="normal">DroidSansMono.ttf</font>
++        </family>
++    </family-list>
++
++    <alias name="worm-ui" to="worm-system-primary" />
++    <alias name="worm-original-sans" to="roboto" />
++    <alias name="worm-mono" to="worm-system-monospace" />
++    <alias name="sans-serif-bold" to="sans-serif" weight="700" />
++</fonts-modification>
+
+diff --git a/grapheneos/vendor/worm/fonts/README.md b/grapheneos/vendor/worm/fonts/README.md
+new file mode 100644
+--- /dev/null
++++ b/grapheneos/vendor/worm/fonts/README.md
+@@ -0,0 +1,33 @@
++# Worm OS local fonts
++
++Place locally licensed PragmataPro files here:
++
++```text
++local/PragmataPro-Regular.ttf
++local/PragmataPro-Bold.ttf
++local/PragmataProMono-Regular.ttf
++local/PragmataProMono-Bold.ttf
++```
++
++These font files are intentionally excluded from Git.
++
++Named Android font families:
++
++```text
++sans-serif -> PragmataPRO, then Roboto, then the original Android/GrapheneOS fallback chain
++monospace -> PragmataProMono, then DroidSansMono, then the original Android/GrapheneOS fallback chain
++worm-system-primary
++worm-system-monospace
++worm-ui -> worm-system-primary
++worm-mono -> worm-system-monospace
++worm-original-sans -> roboto
++```
++
++The fonts are packaged in the PRODUCT partition and therefore become part of signed Worm OS releases and OTA packages.
++
++The customization file only prepends Worm families inside Android's product
++font customization mechanism. It does not replace or remove the framework
++fonts.xml default fallback list, Noto language coverage, CJK fallback, or emoji
++fonts.
++
++The build only defines and packages font modules for files that are present locally. Missing bold weights are reported by `check-fonts.sh`; until local bold files are supplied and wired into `Android.bp` and `config/fonts_customization.xml`, Android synthesizes requested bold/intermediate weights from the available regular files.
+
+diff --git a/grapheneos/vendor/google_devices/frankel/frankel.mk b/grapheneos/vendor/google_devices/frankel/frankel.mk
+--- a/grapheneos/vendor/google_devices/frankel/frankel.mk
++++ b/grapheneos/vendor/google_devices/frankel/frankel.mk
+@@ -4824,1 +4824,8 @@
+     debug.sf.nobootanimation=1
++
++# WORM PATCH-003
++# Worm system font modules with Android fallback preserved by fonts_customization.xml.
++PRODUCT_PACKAGES += \
++    WormPragmataProRegular \
++    WormPragmataProMonoRegular \
++    WormPragmataFontsCustomization

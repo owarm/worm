@@ -1,0 +1,15 @@
+ORIGINAL_PATCH=/opt/worm/patches/worm-os-system-font-v001/changes.diff
+REPAIR_DIR=/opt/worm/patches/review/worm-os-system-font-v001-repaired
+DETECTED_PROBLEM=MALFORMED_HUNK
+ORIGINAL_GIT_APPLY_CHECK_RC=128
+ORIGINAL_GIT_APPLY_CHECK_ERROR=error: patch with only garbage at line 265
+REPAIRED_GIT_APPLY_CHECK_RC=1
+REPAIRED_GIT_APPLY_CHECK_ERROR=error: grapheneos/vendor/worm/fonts/config/fonts_customization.xml: already exists in working directory
+error: grapheneos/vendor/worm/fonts/README.md: already exists in working directory
+error: patch failed: grapheneos/vendor/google_devices/frankel/frankel.mk:4824
+error: grapheneos/vendor/google_devices/frankel/frankel.mk: patch does not apply
+REPAIRED_GIT_APPLY_REVERSE_CHECK_RC=1
+REPAIRED_GIT_APPLY_REVERSE_CHECK_ERROR=error: patch failed: grapheneos/vendor/google_devices/frankel/frankel.mk:4824
+error: grapheneos/vendor/google_devices/frankel/frankel.mk: patch does not apply
+FONT_PATCH_REPAIR=FAILED
+NOTE=Forward check fails on the current checkout because files already exist and the frankel.mk hunk cannot be validated by git apply against the current repository metadata; reverse-check also fails. The repaired copy is preserved for review, not for automatic use.

@@ -1,0 +1,20 @@
+timestamp=20260915-163928 source=/opt/worm/backups destination=/mnt/storage-box-smb/worm/backups size=76M reason=backups moved to Storage Box; no key/private/secret filename matches found
+timestamp=20260915-163928 source=/opt/worm/grapheneos/releases destination=/mnt/storage-box-smb/worm/releases/grapheneos size=18G reason=historical GrapheneOS final release zips/images
+timestamp=20260915-163928 source=/opt/worm/webusb/public/releases destination=/mnt/storage-box-smb/worm/releases/webusb-public size=2.0G reason=WebUSB release payloads
+timestamp=20260915-163928 source=/opt/worm/webusb/dist/releases destination=/mnt/storage-box-smb/worm/releases/webusb-dist size=2.0G reason=WebUSB dist release payloads
+timestamp=20260915-165607 source=/opt/worm/apps-repo-src destination=/mnt/storage-box-smb/worm/old-projects/apps-repo-src size=7.2M reason=old project source
+timestamp=20260915-165607 source=/opt/worm/terminallm destination=/mnt/storage-box-smb/worm/old-projects/terminallm size=101M reason=old project source
+timestamp=20260915-171348 source=/opt/worm/worm-os/keys destination=/opt/worm/keys/worm-os/keys size=20K reason=local secret material kept off Storage Box
+timestamp=20260915-171348 source=/opt/worm/worm-os/worm-store-src/keystore.properties destination=/opt/worm/keys/worm-os/keystore.properties size=4.0K reason=local keystore properties kept off Storage Box
+timestamp=20260915-171348 source=/opt/worm/worm-os destination=/mnt/storage-box-smb/worm/old-projects/worm-os.tar.gz size=82M reason=old project archived without local signing secrets
+timestamp=20260915-171348 source=/opt/worm/wormos destination=/mnt/storage-box-smb/worm/old-projects/wormos.tar.gz size=2.6M reason=old project archived
+timestamp=20260915-171348 source=/opt/worm/local-assets destination=/mnt/storage-box-smb/worm/old-projects/local-assets.tar.gz size=21M reason=old local assets archived
+timestamp=20260915-171348 source=/opt/worm/audit destination=/mnt/storage-box-smb/worm/legacy/tar/audit.tar.gz size=1.2M reason=legacy audit output archived
+timestamp=20260915-171348 source=/opt/worm/docs destination=/mnt/storage-box-smb/worm/legacy/tar/docs.tar.gz size=12K reason=legacy documentation archived
+timestamp=20260915-171348 source=/opt/worm/reports destination=/mnt/storage-box-smb/worm/legacy/tar/reports.tar.gz size=16K reason=legacy reports archived
+timestamp=20260915-171348 source=/opt/worm/BASELINE.env destination=/mnt/storage-box-smb/worm/legacy/root-files/BASELINE.env size=4.0K reason=legacy root file
+timestamp=20260915-171348 source=/opt/worm/README-WORM.md destination=/mnt/storage-box-smb/worm/legacy/root-files/README-WORM.md size=4.0K reason=legacy root file
+timestamp=20260915-171348 source=/opt/worm/SHA256SUMS destination=/mnt/storage-box-smb/worm/legacy/root-files/SHA256SUMS size=4.0K reason=legacy root file
+timestamp=20260915-171348 source=/opt/worm/manifest-pinned.xml destination=/mnt/storage-box-smb/worm/legacy/root-files/manifest-pinned.xml size=256K reason=legacy root file
+timestamp=20260915-171348 source=/opt/worm/prepare-frankel.sh destination=/mnt/storage-box-smb/worm/legacy/root-files/prepare-frankel.sh size=4.0K reason=legacy root script
+timestamp=20260915-171348 source=/opt/worm/sync.sh destination=/mnt/storage-box-smb/worm/legacy/root-files/sync.sh size=4.0K reason=legacy root script

@@ -1,0 +1,110 @@
+# audit-before 20260915162807
+## nginx service
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/usr/lib/systemd/system/nginx.service; enabled; preset: enabled)
+     Active: active (running) since Sat 2026-09-12 15:59:23 CEST; 3 days ago
+ Invocation: 873f1f2de7ea4794839729e44f8a88cf
+       Docs: man:nginx(8)
+    Process: 2655899 ExecReload=/usr/sbin/nginx -g daemon on; master_process on; -s reload (code=exited, status=0/SUCCESS)
+   Main PID: 3826974 (nginx)
+      Tasks: 13 (limit: 77008)
+     Memory: 24.5M (peak: 48.9M, swap: 2.1M, swap peak: 12.4M)
+        CPU: 15.258s
+     CGroup: /system.slice/nginx.service
+             ├─2655901 "nginx: worker process"
+             ├─2655902 "nginx: worker process"
+             ├─2655903 "nginx: worker process"
+             ├─2655904 "nginx: worker process"
+             ├─2655905 "nginx: worker process"
+             ├─2655906 "nginx: worker process"
+             ├─2655907 "nginx: worker process"
+             ├─2655908 "nginx: worker process"
+             ├─2655909 "nginx: worker process"
+             ├─2655910 "nginx: worker process"
+             ├─2655911 "nginx: worker process"
+             ├─2655912 "nginx: worker process"
+             └─3826974 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+
+Sep 15 15:18:40 antani systemd[1]: Reloaded nginx.service - A high performance web server and a reverse proxy server.
+Sep 15 15:56:48 antani systemd[1]: Reloading nginx.service - A high performance web server and a reverse proxy server...
+Sep 15 15:56:48 antani nginx[2645063]: 2026/09/15 15:56:48 [notice] 2645063#2645063: signal process started
+Sep 15 15:56:48 antani systemd[1]: Reloaded nginx.service - A high performance web server and a reverse proxy server.
+Sep 15 16:07:38 antani systemd[1]: Reloading nginx.service - A high performance web server and a reverse proxy server...
+Sep 15 16:07:38 antani nginx[2650684]: 2026/09/15 16:07:38 [notice] 2650684#2650684: signal process started
+Sep 15 16:07:38 antani systemd[1]: Reloaded nginx.service - A high performance web server and a reverse proxy server.
+Sep 15 16:22:44 antani systemd[1]: Reloading nginx.service - A high performance web server and a reverse proxy server...
+Sep 15 16:22:44 antani nginx[2655899]: 2026/09/15 16:22:44 [notice] 2655899#2655899: signal process started
+Sep 15 16:22:44 antani systemd[1]: Reloaded nginx.service - A high performance web server and a reverse proxy server.
+## caddy service
+## wg0
+## nginx enabled
+total 0
+lrwxrwxrwx 1 root root 34 Sep 12 15:59 default -> /etc/nginx/sites-available/default
+lrwxrwxrwx 1 root root 57 Sep 15 15:13 worm-system-public-guards.conf -> /etc/nginx/sites-available/worm-system-public-guards.conf
+lrwxrwxrwx 1 root root 56 Sep 15 15:08 worm-system-vpn-services.conf -> /etc/nginx/sites-available/worm-system-vpn-services.conf
+lrwxrwxrwx 1 root root 43 Sep 12 15:59 worm-webusb.conf -> /etc/nginx/sites-available/worm-webusb.conf
+## coffee configs
+/etc/nginx/sites-available/worm-releases.conf:3:    server_name releases.coffee.pm;
+/etc/nginx/sites-available/worm-releases.conf:15:    ssl_certificate /etc/letsencrypt/live/releases.coffee.pm/fullchain.pem; # managed by Certbot
+/etc/nginx/sites-available/worm-releases.conf:16:    ssl_certificate_key /etc/letsencrypt/live/releases.coffee.pm/privkey.pem; # managed by Certbot
+/etc/nginx/sites-available/worm-releases.conf:22:    if ($host = releases.coffee.pm) {
+/etc/nginx/sites-available/worm-releases.conf:30:    server_name releases.coffee.pm;
+/etc/nginx/sites-available/worm-apps.conf:3:    server_name apps.coffee.pm;
+/etc/nginx/sites-available/worm-apps.conf:15:    ssl_certificate /etc/letsencrypt/live/apps.coffee.pm/fullchain.pem; # managed by Certbot
+/etc/nginx/sites-available/worm-apps.conf:16:    ssl_certificate_key /etc/letsencrypt/live/apps.coffee.pm/privkey.pem; # managed by Certbot
+/etc/nginx/sites-available/worm-apps.conf:22:    if ($host = apps.coffee.pm) {
+/etc/nginx/sites-available/worm-apps.conf:30:    server_name apps.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf:3:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf:13:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf:18:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-available/worm-system-public-guards.conf:19:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:3:    server_name apps.coffee.pm;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:11:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:12:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:75:    server_name releases.coffee.pm;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:83:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:84:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:137:    server_name ota.coffee.pm;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:145:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-available/worm-system-vpn-services.conf:146:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-available/apps.coffee.pm:5:    server_name apps.coffee.pm;
+/etc/nginx/sites-available/apps.coffee.pm:7:    root /var/www/apps.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf.bak-machinallm-v007-20260915153817:3:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf.bak-machinallm-v007-20260915153817:11:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-available/worm-system-public-guards.conf.bak-machinallm-v007-20260915153817:16:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-available/worm-system-public-guards.conf.bak-machinallm-v007-20260915153817:17:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:3:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:13:    server_name apps.coffee.pm releases.coffee.pm ota.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:18:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-enabled/worm-system-public-guards.conf:19:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:3:    server_name apps.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:11:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:12:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:75:    server_name releases.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:83:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:84:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:137:    server_name ota.coffee.pm;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:145:    ssl_certificate /etc/letsencrypt/live/coffee.pm/fullchain.pem;
+/etc/nginx/sites-enabled/worm-system-vpn-services.conf:146:    ssl_certificate_key /etc/letsencrypt/live/coffee.pm/privkey.pem;
+## certs
+/etc/letsencrypt/live/README
+/etc/letsencrypt/live/apps.coffee.pm/README
+/etc/letsencrypt/live/apps.coffee.pm/cert.pem
+/etc/letsencrypt/live/apps.coffee.pm/chain.pem
+/etc/letsencrypt/live/apps.coffee.pm/fullchain.pem
+/etc/letsencrypt/live/apps.coffee.pm/privkey.pem
+/etc/letsencrypt/live/coffee.pm/README
+/etc/letsencrypt/live/coffee.pm/cert.pem
+/etc/letsencrypt/live/coffee.pm/chain.pem
+/etc/letsencrypt/live/coffee.pm/fullchain.pem
+/etc/letsencrypt/live/coffee.pm/privkey.pem
+/etc/letsencrypt/live/releases.coffee.pm/README
+/etc/letsencrypt/live/releases.coffee.pm/cert.pem
+/etc/letsencrypt/live/releases.coffee.pm/chain.pem
+/etc/letsencrypt/live/releases.coffee.pm/fullchain.pem
+/etc/letsencrypt/live/releases.coffee.pm/privkey.pem
+/etc/letsencrypt/live/worm.estixari.com/README
+/etc/letsencrypt/live/worm.estixari.com/cert.pem
+/etc/letsencrypt/live/worm.estixari.com/chain.pem
+/etc/letsencrypt/live/worm.estixari.com/fullchain.pem
+/etc/letsencrypt/live/worm.estixari.com/privkey.pem

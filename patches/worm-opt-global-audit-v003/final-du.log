@@ -1,0 +1,17 @@
+== final du escalated ==
+4.0K	/opt/worm-keys
+20K	/opt/worm-apps-keys
+28K	/opt/worm-identity
+164K	/opt/worm-opnsense
+296K	/opt/worm-release-keys
+420K	/opt/worm-key-backups
+2.1M	/opt/com.worm
+492M	/opt/android-sdk
+353G	/opt/worm
+
+== final df ==
+Filesystem                           Size  Used Avail Use% Mounted on
+/dev/md2                             436G  315G  100G  77% /
+/dev/md2                             436G  315G  100G  77% /
+/dev/nvme1n1p1                       469G  353G   92G  80% /opt/worm
+//u665326.your-storagebox.de/backup   10T  444G  9.6T   5% /mnt/storage-box-smb

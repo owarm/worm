@@ -1,0 +1,29 @@
+TIMESTAMP=2026-09-16 03:41:35 CEST +0200
+STORAGE=/mnt/storage-box-smb
+ARCHIVE=/mnt/storage-box-smb/worm/archive-opt
+
+== findmnt storage ==
+TARGET               SOURCE                              FSTYPE OPTIONS
+/mnt/storage-box-smb //u665326.your-storagebox.de/backup cifs   rw,relatime,vers=3.0,cache=strict,upcall_target=app,username=u665326,uid=0,noforceuid,gid=0,noforcegid,addr=2a01:04f9:bacc:0003:0300:0000:0000:0528,file_mode=0755,dir_mode=0755,iocharset=utf8,soft,nounix,mapposix,reparse=nfs,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1,closetimeo=1
+
+== df storage ==
+Filesystem                           Size  Used Avail Use% Mounted on
+//u665326.your-storagebox.de/backup   10T  444G  9.6T   5% /mnt/storage-box-smb
+
+== rw test ==
+ab77b48814192e9ef06efabec5c4eb47ae855921cceece67b0fd7cc72a6ebdab  /mnt/storage-box-smb/worm/archive-opt/.rw-test-20260916-034135
+RW=OK
+
+== create archive map ==
+QUARANTINE=/mnt/storage-box-smb/worm/archive-opt/quarantine/v003-20260916-034137
+/mnt/storage-box-smb/worm/archive-opt
+/mnt/storage-box-smb/worm/archive-opt/backups
+/mnt/storage-box-smb/worm/archive-opt/builds
+/mnt/storage-box-smb/worm/archive-opt/caches
+/mnt/storage-box-smb/worm/archive-opt/installers
+/mnt/storage-box-smb/worm/archive-opt/legacy
+/mnt/storage-box-smb/worm/archive-opt/misc
+/mnt/storage-box-smb/worm/archive-opt/projects
+/mnt/storage-box-smb/worm/archive-opt/quarantine
+/mnt/storage-box-smb/worm/archive-opt/quarantine/v003-20260916-034137
+/mnt/storage-box-smb/worm/archive-opt/releases

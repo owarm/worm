@@ -1,0 +1,3 @@
+/opt/worm/grapheneos/frameworks/base/core/res/res/values/config.xml
+/opt/worm/grapheneos/packages/apps/Launcher3/src/com/android/launcher3/shapes/ShapesProvider.kt
+/opt/worm/grapheneos/packages/apps/Launcher3/res/values/strings.xml

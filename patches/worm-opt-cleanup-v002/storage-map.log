@@ -1,0 +1,24 @@
+/opt/worm/backups -> /mnt/storage-box-smb/worm/backups (76M, backups moved to Storage Box; no key/private/secret filename matches found)
+timestamp=20260915-163928 symlink=/opt/worm/backups target=/mnt/storage-box-smb/worm/backups reason=backups moved to Storage Box; no key/private/secret filename matches found
+/opt/worm/grapheneos/releases -> /mnt/storage-box-smb/worm/releases/grapheneos (18G, historical GrapheneOS final release zips/images)
+timestamp=20260915-163928 symlink=/opt/worm/grapheneos/releases target=/mnt/storage-box-smb/worm/releases/grapheneos reason=historical GrapheneOS final release zips/images
+/opt/worm/webusb/public/releases -> /mnt/storage-box-smb/worm/releases/webusb-public (2.0G, WebUSB release payloads)
+timestamp=20260915-163928 symlink=/opt/worm/webusb/public/releases target=/mnt/storage-box-smb/worm/releases/webusb-public reason=WebUSB release payloads
+/opt/worm/webusb/dist/releases -> /mnt/storage-box-smb/worm/releases/webusb-dist (2.0G, WebUSB dist release payloads)
+timestamp=20260915-163928 symlink=/opt/worm/webusb/dist/releases target=/mnt/storage-box-smb/worm/releases/webusb-dist reason=WebUSB dist release payloads
+/opt/worm/apps-repo-src -> /mnt/storage-box-smb/worm/old-projects/apps-repo-src (7.2M, old project source)
+/opt/worm/terminallm -> /mnt/storage-box-smb/worm/old-projects/terminallm (101M, old project source)
+/opt/worm/worm-os/keys -> /opt/worm/keys/worm-os/keys (20K, local secret material kept off Storage Box)
+/opt/worm/worm-os/worm-store-src/keystore.properties -> /opt/worm/keys/worm-os/keystore.properties (4.0K, local keystore properties kept off Storage Box)
+/opt/worm/worm-os -> /mnt/storage-box-smb/worm/old-projects/worm-os.tar.gz (82M, old project archived without local signing secrets)
+/opt/worm/wormos -> /mnt/storage-box-smb/worm/old-projects/wormos.tar.gz (2.6M, old project archived)
+/opt/worm/local-assets -> /mnt/storage-box-smb/worm/old-projects/local-assets.tar.gz (21M, old local assets archived)
+/opt/worm/audit -> /mnt/storage-box-smb/worm/legacy/tar/audit.tar.gz (1.2M, legacy audit output archived)
+/opt/worm/docs -> /mnt/storage-box-smb/worm/legacy/tar/docs.tar.gz (12K, legacy documentation archived)
+/opt/worm/reports -> /mnt/storage-box-smb/worm/legacy/tar/reports.tar.gz (16K, legacy reports archived)
+/opt/worm/BASELINE.env -> /mnt/storage-box-smb/worm/legacy/root-files/BASELINE.env (4.0K, legacy root file)
+/opt/worm/README-WORM.md -> /mnt/storage-box-smb/worm/legacy/root-files/README-WORM.md (4.0K, legacy root file)
+/opt/worm/SHA256SUMS -> /mnt/storage-box-smb/worm/legacy/root-files/SHA256SUMS (4.0K, legacy root file)
+/opt/worm/manifest-pinned.xml -> /mnt/storage-box-smb/worm/legacy/root-files/manifest-pinned.xml (256K, legacy root file)
+/opt/worm/prepare-frankel.sh -> /mnt/storage-box-smb/worm/legacy/root-files/prepare-frankel.sh (4.0K, legacy root script)
+/opt/worm/sync.sh -> /mnt/storage-box-smb/worm/legacy/root-files/sync.sh (4.0K, legacy root script)

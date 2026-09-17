@@ -1,0 +1,76 @@
+diff --git a/core/res/res/values/config.xml b/core/res/res/values/config.xml
+index d7a4004a27d6..697f18838528 100644
+--- a/core/res/res/values/config.xml
++++ b/core/res/res/values/config.xml
+@@ -5065,7 +5065,7 @@
+     <bool name="config_allow3rdPartyAppOnInternal">true</bool>
+ 
+     <!-- Specifies the path that is used by AdaptiveIconDrawable class to crop launcher icons. -->
+-    <string name="config_icon_mask" translatable="false">"M50 0C77.6 0 100 22.4 100 50C100 77.6 77.6 100 50 100C22.4 100 0 77.6 0 50C0 22.4 22.4 0 50 0Z"</string>
++    <string name="config_icon_mask" translatable="false">"M50 1C63 1 76.6 3.6 85.6 12.6C94.6 21.6 99 35.3 99 50C99 64.7 94.6 78.4 85.6 87.4C76.6 96.4 63 99 50 99C37 99 23.4 96.4 14.4 87.4C5.4 78.4 1 64.7 1 50C1 35.3 5.4 21.6 14.4 12.6C23.4 3.6 37 1 50 1Z"</string>
+     <!-- Specifies the path that is used by AdaptiveIconDrawable class to crop launcher banners. -->
+     <string name="config_banner_mask" translatable="false">@string/config_icon_mask</string>
+ 
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index e3d6a5d2fe..8c606a7238 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -651,6 +651,8 @@
+     <!-- Strings for icon shapes -->
+     <!-- label for circle shape option in customization picker -->
+     <string name="circle_shape_title">Circle</string>
++    <!-- label for Worm OS shape option in customization picker -->
++    <string name="worm_shape_title" translatable="false">Worm</string>
+     <!-- label for square shape option in customization picker -->
+     <string name="square_shape_title">Square</string>
+     <!-- label for 4-sided cookie option shape in customization picker -->
+diff --git a/src/com/android/launcher3/shapes/ShapesProvider.kt b/src/com/android/launcher3/shapes/ShapesProvider.kt
+index d81cbd6019..bc0d4d9756 100644
+--- a/src/com/android/launcher3/shapes/ShapesProvider.kt
++++ b/src/com/android/launcher3/shapes/ShapesProvider.kt
+@@ -20,6 +20,8 @@ import com.android.launcher3.Flags as LauncherFlags
+ import com.android.launcher3.R
+ 
+ object ShapesProvider {
++    private const val WORM_PATH =
++        "M50 1C63 1 76.6 3.6 85.6 12.6C94.6 21.6 99 35.3 99 50C99 64.7 94.6 78.4 85.6 87.4C76.6 96.4 63 99 50 99C37 99 23.4 96.4 14.4 87.4C5.4 78.4 1 64.7 1 50C1 35.3 5.4 21.6 14.4 12.6C23.4 3.6 37 1 50 1Z"
+     private const val CIRCLE_PATH = "M50 0A50 50,0,1,1,50 100A50 50,0,1,1,50 0"
+     private const val SQUARE_PATH =
+         "M53.689 0.82 L53.689 .82 C67.434 .82 74.306 .82 79.758 2.978 87.649 6.103 93.897 12.351 97.022 20.242 99.18 25.694 99.18 32.566 99.18 46.311 V53.689 C99.18 67.434 99.18 74.306 97.022 79.758 93.897 87.649 87.649 93.897 79.758 97.022 74.306 99.18 67.434 99.18 53.689 99.18 H46.311 C32.566 99.18 25.694 99.18 20.242 97.022 12.351 93.897 6.103 87.649 2.978 79.758 .82 74.306 .82 67.434 .82 53.689 L.82 46.311 C.82 32.566 .82 25.694 2.978 20.242 6.103 12.351 12.351 6.103 20.242 2.978 25.694 .82 32.566 .82 46.311 .82Z"
+@@ -30,6 +32,7 @@ object ShapesProvider {
+     private const val ARCH_PATH =
+         "M50 0C77.614 0 100 22.386 100 50C100 85.471 100 86.476 99.9 87.321 99.116 93.916 93.916 99.116 87.321 99.9 86.476 100 85.471 100 83.46 100H16.54C14.529 100 13.524 100 12.679 99.9 6.084 99.116 .884 93.916 .1 87.321 0 86.476 0 85.471 0 83.46L0 50C0 22.386 22.386 0 50 0Z"
+     const val CIRCLE_KEY = "circle"
++    const val WORM_KEY = "worm"
+     const val SQUARE_KEY = "square"
+     const val FOUR_SIDED_COOKIE_KEY = "four_sided_cookie"
+     const val SEVEN_SIDED_COOKIE_KEY = "seven_sided_cookie"
+@@ -38,6 +41,13 @@ object ShapesProvider {
+     val iconShapes: Array<IconShapeModel> =
+         if (LauncherFlags.enableLauncherIconShapes()) {
+             arrayOf(
++                IconShapeModel(
++                    key = WORM_KEY,
++                    titleId = R.string.worm_shape_title,
++                    pathString = WORM_PATH,
++                    folderRadiusRatio = 0.72f,
++                    shapeRadius = 22f,
++                ),
+                 IconShapeModel(
+                     key = CIRCLE_KEY,
+                     titleId = R.string.circle_shape_title,
+@@ -73,9 +83,11 @@ object ShapesProvider {
+         } else {
+             arrayOf(
+                 IconShapeModel(
+-                    key = CIRCLE_KEY,
+-                    titleId = R.string.circle_shape_title,
+-                    pathString = CIRCLE_PATH,
++                    key = WORM_KEY,
++                    titleId = R.string.worm_shape_title,
++                    pathString = WORM_PATH,
++                    folderRadiusRatio = 0.72f,
++                    shapeRadius = 22f,
+                 )
+             )
+         }

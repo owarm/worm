@@ -1,0 +1,9 @@
+TIMESTAMP=2026-09-16 03:43:41 CEST +0200
+== large files >100M excluding protected huge active trees when possible ==
+
+== duplicate candidates by exact size ==
+
+== duplicate hashes for candidates ==
+NO_DUPLICATE_SIZE_CANDIDATES
+
+ACTION=NO_DUPLICATES_DELETED

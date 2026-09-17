@@ -1,0 +1,123 @@
+coffee-edge-v003
+Timestamp: 2026-09-15 17:27 Europe/Rome
+
+OBJECTIVE
+Set Caddy as the public TLS reverse proxy for the initial *.coffee.pm edge:
+- worm.coffee.pm
+- apps.coffee.pm
+- logs.coffee.pm
+
+INPUT AUDITS USED
+- /opt/worm/patches/robot-audit-v001/README.md
+  Report reference: /opt/worm/logs/audit/robot-audit-20260915-164947.log
+- /opt/worm/patches/robot-network-audit-v002/network-snapshot.txt
+  Previous snapshot showed public 162.55.6.173 and VLAN 10.90.20.10/24.
+  Live check during patch showed public 162.55.6.173, IPv6 2a01:4f8:252:7ee::2,
+  and private VLAN IP 10.20.1.2/24.
+
+BACKUPS
+Versioned backups were created before modification:
+/opt/worm/patches/coffee-edge-v003/backups/20260915-171949/
+
+CONFIG PREVIOUS
+- Caddy was installed absent: caddy.service did not exist and /etc/caddy had no Caddyfile.
+- nginx was public edge on wildcard/public :80/:443.
+- Active nginx symlinks before migration:
+  - default
+  - worm-system-public-guards.conf
+  - worm-system-vpn-services.conf
+  - worm-webusb.conf
+- logs service was already active on 127.0.0.1:8765, even though the current unit file references 127.0.0.1:8300.
+- nginx private VPN config referenced stale 10.90.20.10:443; live VLAN IP is 10.20.1.2.
+
+CONFIG NEW
+- Installed Caddy package and enabled caddy.service.
+- /etc/caddy/Caddyfile is now the public edge.
+- /etc/nginx/sites-available/coffee-edge-v003-backends.conf added.
+- /etc/nginx/sites-enabled/coffee-edge-v003-backends.conf enabled.
+- Disabled nginx public symlinks:
+  - /etc/nginx/sites-enabled/default
+  - /etc/nginx/sites-enabled/worm-system-public-guards.conf
+  - /etc/nginx/sites-enabled/worm-webusb.conf
+- Kept nginx private VPN symlink:
+  - /etc/nginx/sites-enabled/worm-system-vpn-services.conf
+- Adjusted private nginx listen IP from 10.90.20.10:443 to live 10.20.1.2:443.
+
+PUBLIC CADDY DOMAINS
+- worm.coffee.pm -> 127.0.0.1:8100
+- apps.coffee.pm -> 127.0.0.1:8200
+- logs.coffee.pm -> 127.0.0.1:8300
+- worm.estixari.com -> 127.0.0.1:8100
+
+BACKENDS
+- 127.0.0.1:8100 nginx static backend for /var/www/worm-webusb.
+- 127.0.0.1:8200 nginx static backend for /var/www/worm-apps.
+- 127.0.0.1:8300 nginx shim for logs.coffee.pm, proxying to live gunicorn at 127.0.0.1:8765.
+- 127.0.0.1:8765 existing worm-logs gunicorn service.
+- 10.20.1.2:443 nginx private/VPN-only apps/releases/ota/logs config.
+
+PORTS AFTER PATCH
+- Caddy:
+  - 162.55.6.173:80
+  - 162.55.6.173:443
+  - [2a01:4f8:252:7ee::2]:80
+  - [2a01:4f8:252:7ee::2]:443
+- nginx:
+  - 127.0.0.1:8100
+  - 127.0.0.1:8200
+  - 127.0.0.1:8300
+  - 10.20.1.2:443
+- worm-logs:
+  - 127.0.0.1:8765
+
+TLS / CERTIFICATES
+- Caddy automatic TLS is active for worm.estixari.com.
+- Existing valid Let's Encrypt wildcard certificate for *.coffee.pm was copied to:
+  - /etc/caddy/certs/coffee.pm/fullchain.pem
+  - /etc/caddy/certs/coffee.pm/privkey.pem
+- Reason: current DNS for worm.coffee.pm, apps.coffee.pm, and logs.coffee.pm does not resolve from this host.
+  Caddy/Let's Encrypt failed automatic issuance for logs.coffee.pm with NXDOMAIN and then rate limit.
+  The wildcard certificate subjectAltName is DNS:*.coffee.pm, DNS:coffee.pm and is valid until 2026-12-14.
+
+SECURITY
+- Caddy uses gzip/zstd.
+- Caddy writes JSON logs in /opt/worm/logs/caddy/.
+- Per-host Caddy logs:
+  - worm.coffee.pm.log
+  - apps.coffee.pm.log
+  - logs.coffee.pm.log
+  - worm.estixari.com.log
+- Caddy security headers include HSTS, nosniff, DENY frame options, no-referrer, and restrictive Permissions-Policy.
+- nginx backends have autoindex off.
+- nginx backends block common secret/build artifact filename patterns.
+- OTA is not defined in public Caddy. OTA remains only in the private nginx config on 10.20.1.2:443.
+
+VALIDATION
+- caddy validate: OK
+- nginx -t: OK
+- systemctl status caddy nginx worm-logs: active
+- systemctl --failed: 0 failed units
+- Local HTTPS tests with --resolve:
+  - worm.coffee.pm -> HTTP 200, TLS verify 0
+  - apps.coffee.pm -> HTTP 200, TLS verify 0
+  - logs.coffee.pm/health -> HTTP 200, TLS verify 0
+  - worm.estixari.com -> HTTP 200, TLS verify 0
+- HTTP redirect test:
+  - logs.coffee.pm/health on :80 -> 301 https://logs.coffee.pm/health
+
+DNS PROBLEMS
+- getent ahostsv4 returned no records for:
+  - worm.coffee.pm
+  - apps.coffee.pm
+  - logs.coffee.pm
+  - worm.estixari.com
+- Caddy log showed logs.coffee.pm NXDOMAIN for both A and AAAA during ACME.
+- Public DNS must be fixed for real external clients:
+  - A records should point to 162.55.6.173
+  - AAAA records should point to 2a01:4f8:252:7ee::2 if IPv6 is desired
+
+NOTES
+- The robot-network-v002 snapshot was stale for the private VLAN address.
+  Live system state was used to avoid leaving nginx unreloadable.
+- nginx had to be restarted, not only reloaded, to release old wildcard :80/:443 sockets.
+  Config was validated before restart.

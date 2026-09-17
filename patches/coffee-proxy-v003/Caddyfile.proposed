@@ -1,0 +1,59 @@
+{
+    email admin@coffee.pm
+
+    log {
+        output file /opt/worm/logs/caddy/global.log {
+            roll_size 50MiB
+            roll_keep 10
+            roll_keep_for 720h
+        }
+
+        format json
+    }
+}
+
+(common_security) {
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    encode zstd gzip
+}
+
+worm.coffee.pm {
+    import common_security
+
+    reverse_proxy 127.0.0.1:8100
+
+    log {
+        output file /opt/worm/logs/caddy/worm.coffee.pm.log
+        format json
+    }
+}
+
+apps.coffee.pm {
+    import common_security
+
+    reverse_proxy 127.0.0.1:8200
+
+    log {
+        output file /opt/worm/logs/caddy/apps.coffee.pm.log
+        format json
+    }
+}
+
+logs.coffee.pm {
+    import common_security
+
+    reverse_proxy 127.0.0.1:8300
+
+    log {
+        output file /opt/worm/logs/caddy/logs.coffee.pm.log
+        format json
+    }
+}
+
+# OTA deliberately NOT defined on public HTTP/S.

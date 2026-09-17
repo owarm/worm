@@ -1,0 +1,101 @@
+diff --git a/apps/com.worm.home/app/build.gradle.kts b/apps/com.worm.home/app/build.gradle.kts
+--- a/apps/com.worm.home/app/build.gradle.kts
++++ b/apps/com.worm.home/app/build.gradle.kts
+@@
+-        applicationId = "com.worm"
++        applicationId = "com.worm.home"
+
+diff --git a/apps/com.worm.home/app/src/main/AndroidManifest.xml b/apps/com.worm.home/app/src/main/AndroidManifest.xml
+--- a/apps/com.worm.home/app/src/main/AndroidManifest.xml
++++ b/apps/com.worm.home/app/src/main/AndroidManifest.xml
+@@
+-            android:name=".MainActivity"
++            android:name="com.worm.MainActivity"
+
+diff --git a/grapheneos/external/WormHome/Android.bp b/grapheneos/external/WormHome/Android.bp
+new file mode 100644
+--- /dev/null
++++ b/grapheneos/external/WormHome/Android.bp
+@@
++android_app {
++    name: "WormHome",
++    system_ext_specific: true,
++
++    srcs: ["src/main/java/**/*.java"],
++    resource_dirs: ["src/main/res"],
++    manifest: "AndroidManifest.xml",
++
++    sdk_version: "current",
++    min_sdk_version: "31",
++    target_sdk_version: "36",
++
++    certificate: "testkey",
++}
+
+diff --git a/grapheneos/external/WormHome/AndroidManifest.xml b/grapheneos/external/WormHome/AndroidManifest.xml
+new file mode 100644
+--- /dev/null
++++ b/grapheneos/external/WormHome/AndroidManifest.xml
+@@
++<manifest xmlns:android="http://schemas.android.com/apk/res/android"
++    package="com.worm.home">
++
++    <queries>
++        <intent>
++            <action android:name="android.intent.action.MAIN" />
++            <category android:name="android.intent.category.LAUNCHER" />
++        </intent>
++    </queries>
++
++    <application
++        android:allowBackup="false"
++        android:label="@string/app_name"
++        android:theme="@style/Theme.WormHome"
++        android:icon="@mipmap/ic_launcher"
++        android:roundIcon="@mipmap/ic_launcher_round"
++        android:supportsRtl="true">
++
++        <activity
++            android:name="com.worm.MainActivity"
++            android:exported="true"
++            android:launchMode="singleTask">
++
++            <intent-filter android:priority="1000">
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.HOME" />
++                <category android:name="android.intent.category.DEFAULT" />
++            </intent-filter>
++
++            <intent-filter>
++                <action android:name="android.intent.action.MAIN" />
++                <category android:name="android.intent.category.LAUNCHER" />
++            </intent-filter>
++
++        </activity>
++    </application>
++</manifest>
+
+diff --git a/grapheneos/external/WormHome/src b/grapheneos/external/WormHome/src
+new file mode 120000
+--- /dev/null
++++ b/grapheneos/external/WormHome/src
+@@
++/opt/worm/apps/com.worm.home/app/src
+
+diff --git a/grapheneos/vendor/google_devices/frankel/frankel.mk b/grapheneos/vendor/google_devices/frankel/frankel.mk
+--- a/grapheneos/vendor/google_devices/frankel/frankel.mk
++++ b/grapheneos/vendor/google_devices/frankel/frankel.mk
+@@
+ PRODUCT_PACKAGES += \\
+     wg \\
+     worm_wg
++
++# WORM PATCH-005
++# Worm Home is included as a standard system_ext app alongside Launcher3.
++PRODUCT_PACKAGES += \\
++    WormHome
+ 
+ PRODUCT_SOONG_NAMESPACES += \\
++    external/WormHome \\
+     external/wireguard-tools \\
+     system/worm/worm_wg
